@@ -1,4 +1,4 @@
-import { Activity, Clock, Compass, Database, LifeBuoy, ShieldAlert } from 'lucide-react';
+import { Activity, Clock, Compass, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
@@ -16,8 +16,15 @@ export function Sidebar({ currentTab }: SidebarProps) {
             
             <nav className="sidebar-nav">
                 <div 
+                    className={`nav-item ${currentTab === 'dashboard' ? 'active' : ''}`}
+                    onClick={() => navigate('/dashboard')}
+                >
+                    <Activity size={18} />
+                    <span>Dashboard</span>
+                </div>
+                <div 
                     className={`nav-item ${currentTab === 'new' ? 'active' : ''}`}
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/research')}
                 >
                     <Compass size={18} />
                     <span>New Research</span>
@@ -33,28 +40,10 @@ export function Sidebar({ currentTab }: SidebarProps) {
                     className={`nav-item ${currentTab === 'watchlist' ? 'active' : ''}`}
                     onClick={() => navigate('/watchlist')}
                 >
-                    <Activity size={18} />
+                    <Eye size={18} />
                     <span>Watchlist</span>
                 </div>
-                <div 
-                    className={`nav-item ${currentTab === 'data' ? 'active' : ''}`}
-                    onClick={() => navigate('/data')}
-                >
-                    <Database size={18} />
-                    <span>Data Sources</span>
-                </div>
             </nav>
-
-            <div className="sidebar-footer">
-                <div className="nav-item">
-                    <ShieldAlert size={18} />
-                    <span>Security</span>
-                </div>
-                <div className="nav-item">
-                    <LifeBuoy size={18} />
-                    <span>Support</span>
-                </div>
-            </div>
         </aside>
     );
 }

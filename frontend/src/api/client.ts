@@ -1,4 +1,4 @@
-import type { ResearchRequest, ResearchJobResponse, ResearchHistoryResponse } from '../types/api';
+import type { ResearchRequest, ResearchJobResponse, ResearchHistoryResponse, WatchlistItemRequest, WatchlistItem, WatchlistResponse } from '../types/api';
 import { supabase } from '../lib/supabase';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -23,7 +23,13 @@ export class ApiClient {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                const error = new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                (error as any).status = response.status;
+                throw error;
+            }
+
+            if (response.status === 204) {
+                return null;
             }
 
             return await response.json();
@@ -50,5 +56,22 @@ export class ApiClient {
 
     static async getResearchHistory(limit: number = 20): Promise<ResearchHistoryResponse> {
         return this.fetchWithHandling(`/api/v1/research/history?limit=${limit}`);
+    }
+
+    static async getWatchlist(): Promise<WatchlistResponse> {
+        return this.fetchWithHandling('/api/v1/watchlist');
+    }
+
+    static async addWatchlistItem(data: WatchlistItemRequest): Promise<WatchlistItem> {
+        return this.fetchWithHandling('/api/v1/watchlist', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    static async removeWatchlistItem(itemId: string): Promise<void> {
+        return this.fetchWithHandling(`/api/v1/watchlist/${itemId}`, {
+            method: 'DELETE',
+        });
     }
 }

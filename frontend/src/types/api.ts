@@ -152,3 +152,19 @@ export interface ResearchHistoryItem {
 export interface ResearchHistoryResponse {
     research: ResearchHistoryItem[];
 }
+
+export interface WatchlistItemRequest {
+    ticker: string;
+    company_name?: string;
+}
+
+export interface WatchlistItem {
+    id: string;
+    ticker: string;
+    company_name?: string;
+    created_at: string;
+}
+
+export interface WatchlistResponse {
+    watchlist: WatchlistItem[];
+}

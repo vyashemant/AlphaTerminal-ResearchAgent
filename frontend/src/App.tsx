@@ -1,7 +1,8 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Navigate, Routes, Route, useLocation } from 'react-router-dom';
+import { Dashboard } from './pages/Dashboard';
 import { Research } from './pages/Research';
 import { History } from './pages/History';
-import { DataSources } from './pages/DataSources';
+import { Watchlist } from './pages/Watchlist';
 import { AuthPage } from './pages/AuthPage';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopNav } from './components/layout/TopNav';
@@ -11,10 +12,10 @@ import './index.css';
 function App() {
   const location = useLocation();
   const path = location.pathname;
-  let currentTab = 'new';
-  if (path.startsWith('/history')) currentTab = 'history';
+  let currentTab = 'dashboard';
+  if (path.startsWith('/research')) currentTab = 'new';
+  else if (path.startsWith('/history')) currentTab = 'history';
   else if (path.startsWith('/watchlist')) currentTab = 'watchlist';
-  else if (path.startsWith('/data')) currentTab = 'data';
 
   // If the user is on /auth but they are already logged in, they shouldn't see Sidebar.
   // Actually, we can just render AuthPage standalone when on /auth.
@@ -36,12 +37,12 @@ function App() {
         <div className="main-scroll-area">
           <Routes>
             <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<Research />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/research" element={<Research />} />
               <Route path="/research/:jobId" element={<Research />} />
               <Route path="/history" element={<History />} />
-              <Route path="/watchlist" element={<div style={{ padding: '2rem' }}><h2>Watchlist</h2><p>Watchlist view placeholder</p></div>} />
-              <Route path="/data" element={<DataSources />} />
+              <Route path="/watchlist" element={<Watchlist />} />
             </Route>
           </Routes>
         </div>

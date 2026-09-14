@@ -4,6 +4,8 @@ from pydantic import BaseModel, field_validator
 from typing import Optional, List, Dict
 import logging
 from contextlib import asynccontextmanager
+import uuid
+from datetime import datetime, timezone
 
 from agents.investment_research_report import InvestmentResearchReport
 from services.research_service import submit_research_job, get_job_history, get_research_job
@@ -78,6 +80,26 @@ class ResearchHistoryItem(BaseModel):
 class ResearchHistoryResponse(BaseModel):
     research: List[ResearchHistoryItem]
 
+class WatchlistItemRequest(BaseModel):
+    ticker: str
+    company_name: Optional[str] = None
+
+    @field_validator("ticker")
+    @classmethod
+    def validate_ticker(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Ticker cannot be empty.")
+        return v.strip().upper()
+
+class WatchlistItemResponse(BaseModel):
+    id: str
+    ticker: str
+    company_name: Optional[str] = None
+    created_at: str
+
+class WatchlistResponse(BaseModel):
+    watchlist: List[WatchlistItemResponse]
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -132,3 +154,56 @@ def get_research_status_route(job_id: str, user: Dict[str, str] = Depends(get_cu
         started_at=job_data.get("started_at"),
         completed_at=job_data.get("completed_at")
     )
+
+@app.get("/api/v1/watchlist", response_model=WatchlistResponse)
+def get_watchlist_route(user: Dict[str, str] = Depends(get_current_user)):
+    try:
+        import db.database as db
+        items = db.list_watchlist(user_id=user["id"])
+        watchlist_items = []
+        for item in items:
+            watchlist_items.append(WatchlistItemResponse(
+                id=item["id"],
+                ticker=item["ticker"],
+                company_name=item.get("company_name"),
+                created_at=item["created_at"]
+            ))
+        return WatchlistResponse(watchlist=watchlist_items)
+    except Exception as e:
+        logger.error(f"Failed to get watchlist: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
+
+@app.post("/api/v1/watchlist", status_code=status.HTTP_201_CREATED, response_model=WatchlistItemResponse)
+def add_watchlist_item_route(request: WatchlistItemRequest, user: Dict[str, str] = Depends(get_current_user)):
+    item_id = str(uuid.uuid4())
+    created_at = datetime.now(timezone.utc).isoformat()
+    try:
+        import db.database as db
+        db.add_watchlist_item(
+            id=item_id,
+            user_id=user["id"],
+            ticker=request.ticker,
+            company_name=request.company_name,
+            created_at=created_at
+        )
+        return WatchlistItemResponse(
+            id=item_id,
+            ticker=request.ticker,
+            company_name=request.company_name,
+            created_at=created_at
+        )
+    except db.ItemExistsError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Ticker already in watchlist")
+    except Exception as e:
+        logger.error(f"Failed to add to watchlist: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
+
+@app.delete("/api/v1/watchlist/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_watchlist_item_route(item_id: str, user: Dict[str, str] = Depends(get_current_user)):
+    try:
+        import db.database as db
+        db.delete_watchlist_item(id=item_id, user_id=user["id"])
+        return None
+    except Exception as e:
+        logger.error(f"Failed to delete watchlist item: {e}")
+        raise HTTPException(status_code=500, detail="Database error")

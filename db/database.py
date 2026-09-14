@@ -15,6 +15,10 @@ class PersistenceError(Exception):
     """Raised when a database operation fails."""
     pass
 
+class ItemExistsError(PersistenceError):
+    """Raised when attempting to add a duplicate item."""
+    pass
+
 class DatabaseBackend(ABC):
     @abstractmethod
     def init_db(self, db_path=None):
@@ -37,6 +41,18 @@ class DatabaseBackend(ABC):
 
     @abstractmethod
     def list_jobs(self, limit: int = 20, status: str = None, db_path=None, user_id: str = None) -> list:
+        pass
+
+    @abstractmethod
+    def add_watchlist_item(self, id: str, user_id: str, ticker: str, company_name: str, created_at: str, db_path=None):
+        pass
+
+    @abstractmethod
+    def list_watchlist(self, user_id: str, db_path=None) -> list:
+        pass
+
+    @abstractmethod
+    def delete_watchlist_item(self, id: str, user_id: str, db_path=None):
         pass
 
 
@@ -98,6 +114,17 @@ class SQLiteBackend(DatabaseBackend):
             for col in required_columns:
                 if col not in columns:
                     cursor.execute(f"ALTER TABLE research_jobs ADD COLUMN {col} TEXT")
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS watchlist (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    ticker TEXT NOT NULL,
+                    company_name TEXT,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(user_id, ticker)
+                )
+            """)
             
             conn.commit()
 
@@ -176,6 +203,40 @@ class SQLiteBackend(DatabaseBackend):
                 return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
             raise PersistenceError("SQLite list_jobs failed") from e
+
+    def add_watchlist_item(self, id: str, user_id: str, ticker: str, company_name: str, created_at: str, db_path=None):
+        try:
+            with self._get_db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO watchlist (id, user_id, ticker, company_name, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (id, user_id, ticker, company_name, created_at))
+                conn.commit()
+        except sqlite3.IntegrityError as e:
+            if "UNIQUE constraint failed" in str(e).lower() or "unique" in str(e).lower():
+                raise ItemExistsError(f"Watchlist item already exists for ticker {ticker}") from e
+            raise PersistenceError("SQLite add_watchlist_item failed") from e
+        except Exception as e:
+            raise PersistenceError("SQLite add_watchlist_item failed") from e
+
+    def list_watchlist(self, user_id: str, db_path=None) -> list:
+        try:
+            with self._get_db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, user_id, ticker, company_name, created_at FROM watchlist WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            raise PersistenceError("SQLite list_watchlist failed") from e
+
+    def delete_watchlist_item(self, id: str, user_id: str, db_path=None):
+        try:
+            with self._get_db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM watchlist WHERE id = ? AND user_id = ?", (id, user_id))
+                conn.commit()
+        except Exception as e:
+            raise PersistenceError("SQLite delete_watchlist_item failed") from e
 
 
 class SupabaseBackend(DatabaseBackend):
@@ -284,14 +345,48 @@ class SupabaseBackend(DatabaseBackend):
             logger.error(f"Supabase read error (list_jobs)")
             raise PersistenceError("Supabase list_jobs failed") from e
 
+    def add_watchlist_item(self, id: str, user_id: str, ticker: str, company_name: str, created_at: str, db_path=None):
+        data = {
+            "id": id,
+            "user_id": user_id,
+            "ticker": ticker,
+            "company_name": company_name,
+            "created_at": created_at
+        }
+        try:
+            self._client.table("watchlist").insert(data).execute()
+        except Exception as e:
+            err_str = str(e).lower()
+            if "unique constraint" in err_str or "duplicate key" in err_str:
+                raise ItemExistsError(f"Watchlist item already exists for ticker {ticker}") from e
+            logger.error(f"Supabase write error (add_watchlist_item)")
+            raise PersistenceError("Supabase add_watchlist_item failed") from e
+
+    def list_watchlist(self, user_id: str, db_path=None) -> list:
+        try:
+            response = self._client.table("watchlist").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Supabase read error (list_watchlist)")
+            raise PersistenceError("Supabase list_watchlist failed") from e
+
+    def delete_watchlist_item(self, id: str, user_id: str, db_path=None):
+        try:
+            self._client.table("watchlist").delete().eq("id", id).eq("user_id", user_id).execute()
+        except Exception as e:
+            logger.error(f"Supabase write error (delete_watchlist_item)")
+            raise PersistenceError("Supabase delete_watchlist_item failed") from e
+
 
 class MockBackend(DatabaseBackend):
     """In-memory dictionary exclusively for explicit testing mode."""
     def __init__(self):
         self._mock_db: Dict[str, dict] = {}
+        self._mock_watchlist: Dict[str, dict] = {}
 
     def clear(self):
         self._mock_db.clear()
+        self._mock_watchlist.clear()
 
     def init_db(self, db_path=None):
         pass
@@ -355,6 +450,28 @@ class MockBackend(DatabaseBackend):
             })
         return result
 
+    def add_watchlist_item(self, id: str, user_id: str, ticker: str, company_name: str, created_at: str, db_path=None):
+        for item in self._mock_watchlist.values():
+            if item.get("user_id") == user_id and item.get("ticker") == ticker:
+                raise ItemExistsError(f"Watchlist item already exists for ticker {ticker}")
+        
+        self._mock_watchlist[id] = {
+            "id": id,
+            "user_id": user_id,
+            "ticker": ticker,
+            "company_name": company_name,
+            "created_at": created_at
+        }
+
+    def list_watchlist(self, user_id: str, db_path=None) -> list:
+        items = [item.copy() for item in self._mock_watchlist.values() if item.get("user_id") == user_id]
+        items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return items
+
+    def delete_watchlist_item(self, id: str, user_id: str, db_path=None):
+        if id in self._mock_watchlist and self._mock_watchlist[id].get("user_id") == user_id:
+            del self._mock_watchlist[id]
+
 
 # Singleton setup logic
 _db_instance: Optional[DatabaseBackend] = None
@@ -408,6 +525,15 @@ def get_job(job_id: str, db_path=None, user_id: str = None) -> Optional[dict]:
 
 def list_jobs(limit: int = 20, status: str = None, db_path=None, user_id: str = None) -> list:
     return get_db().list_jobs(limit, status, db_path, user_id)
+
+def add_watchlist_item(id: str, user_id: str, ticker: str, company_name: str, created_at: str, db_path=None):
+    get_db().add_watchlist_item(id, user_id, ticker, company_name, created_at, db_path)
+
+def list_watchlist(user_id: str, db_path=None) -> list:
+    return get_db().list_watchlist(user_id, db_path)
+
+def delete_watchlist_item(id: str, user_id: str, db_path=None):
+    get_db().delete_watchlist_item(id, user_id, db_path)
 
 def set_testing_mode(enabled: bool):
     """
