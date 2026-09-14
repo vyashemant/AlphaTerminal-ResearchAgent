@@ -1,4 +1,9 @@
-import type { ResearchRequest, ResearchJobResponse, ResearchHistoryResponse, WatchlistItemRequest, WatchlistItem, WatchlistResponse } from '../types/api';
+import type { 
+    ResearchRequest, ResearchJobResponse, ResearchHistoryResponse, 
+    WatchlistItemRequest, WatchlistItem, WatchlistResponse,
+    PortfolioItemRequest, PortfolioItemUpdate, PortfolioItem, PortfolioResponse,
+    MarketMoversResponse, ScreenerItem
+} from '../types/api';
 import { supabase } from '../lib/supabase';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -73,5 +78,51 @@ export class ApiClient {
         return this.fetchWithHandling(`/api/v1/watchlist/${itemId}`, {
             method: 'DELETE',
         });
+    }
+
+    // --- PORTFOLIO ---
+    static async getPortfolio(): Promise<PortfolioResponse> {
+        return this.fetchWithHandling('/api/v1/portfolio');
+    }
+
+    static async addPortfolioItem(data: PortfolioItemRequest): Promise<PortfolioItem> {
+        return this.fetchWithHandling('/api/v1/portfolio', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    static async updatePortfolioItem(itemId: string, data: PortfolioItemUpdate): Promise<PortfolioItem> {
+        return this.fetchWithHandling(`/api/v1/portfolio/${itemId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    static async deletePortfolioItem(itemId: string): Promise<void> {
+        return this.fetchWithHandling(`/api/v1/portfolio/${itemId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // --- MARKETS ---
+    static async getMarketQuote(ticker: string): Promise<any> {
+        return this.fetchWithHandling(`/api/v1/markets/quote?ticker=${encodeURIComponent(ticker)}`);
+    }
+
+    static async getMarketMovers(): Promise<MarketMoversResponse> {
+        return this.fetchWithHandling('/api/v1/markets/movers');
+    }
+
+    static async getScreenerResults(filters: Record<string, number | undefined>): Promise<ScreenerItem[]> {
+        const queryParams = new URLSearchParams();
+        for (const [key, value] of Object.entries(filters)) {
+            if (value !== undefined) {
+                queryParams.append(key, value.toString());
+            }
+        }
+        const qs = queryParams.toString();
+        const url = `/api/v1/markets/screener${qs ? '?' + qs : ''}`;
+        return this.fetchWithHandling(url);
     }
 }

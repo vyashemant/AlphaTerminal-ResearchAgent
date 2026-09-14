@@ -1,273 +1,266 @@
 # AI Investment Research
 
-An advanced, production-oriented AI-powered equity research platform that orchestrates specialized AI agents to analyze public companies. The platform combines real-time data retrieval, deterministic financial calculations, rigorous evidence tracking, and a premium React-based financial terminal interface.
+A production-oriented AI-powered financial research terminal built with CrewAI, Gemini, FastAPI, and React. Alpha Terminal provides autonomous, agentic financial research generation, coupled with tools for market discovery, simulated portfolio tracking, and comprehensive investment evaluation.
 
-The core architectural principle of this system is the strict separation of quantitative calculations from qualitative reasoning:
+## Features
 
-```
-RETRIEVAL
-    ↓
-VALIDATION
-    ↓
-CALCULATION
-    ↓
-REASONING
-    ↓
-EVIDENCE
-    ↓
-PRESENTATION
-```
+- **AI Research Architecture**: Asynchronous multi-agent generation of comprehensive investment reports.
+- **Market Data**: Real-time bounded market insights, pricing, and 1-month historical charts via Yahoo Finance.
+- **Financial Calculations**: Deterministic fundamental financial calculations and real-time paper portfolio valuations.
+- **Evidence & Provenance**: Robust citation and evidence registry to verify AI claims.
+- **Authentication & Security**: Supabase JWT authentication, protected frontend routes, and Row Level Security (RLS) on the backend.
+- **Persistence**: Relational database persistence across multiple backends (SQLite, Supabase) with full user isolation.
 
-By enforcing this flow, the platform guarantees that financial data (e.g., Gross Margins, ROE) is mathematically calculated from factual SEC filings and Yahoo Finance data, reducing the risk of numerical hallucinations. The LLM's role is strictly confined to reasoning, interpreting the deterministic data, and synthesizing investment theses.
+## Product Modules
 
----
+### Markets
+The Market module offers a real-time overview of the market.
+- **Overview & Movers**: Provides the day's top gainers and losers from a curated universe of major US equities.
+- **Quotes**: Detailed ticker lookups yielding current prices, day ranges, 52-week ranges, volume, market cap, and recent 1-month historical pricing charts.
 
-## Table of Contents
-1. [Overview](#1-overview)
-2. [Features](#2-features)
-3. [Architecture](#3-architecture)
-4. [Prerequisites](#4-prerequisites)
-5. [Installation & Setup](#5-installation--setup)
-6. [Configuration](#6-configuration)
-7. [Running the Application](#7-running-the-application)
-8. [API Documentation](#8-api-documentation)
-9. [Testing](#9-testing)
+### Stock Screener
+A dynamic, fundamental screener targeting major US equities.
+- **Filters**: Filter stocks based on Price, P/E Ratio, Market Cap, and Dividend Yield.
+- **Results**: Responsive table dynamically populated with real-time fundamentals.
 
----
+### Paper Portfolio
+**PAPER PORTFOLIO ONLY.** This module is for simulated tracking and is not connected to any real-world brokerage. It does not execute real trades.
+- **Capabilities**: Track simulated holdings with exact quantity and average cost.
+- **Valuation**: Calculates total invested capital, total real-time market value, and deterministic unrealized P/L (Total and Percentage).
+- **CRUD**: Full ability to add, edit, or delete simulated holdings.
 
-## 1. Overview
+### Watchlist
+- **Tracking**: Maintain a user-specific list of ticker symbols.
+- **Integration**: Start deep research directly from watchlist items.
+- **Security**: Complete isolation using Supabase RLS.
 
-The AI Investment Research platform automates deep fundamental and quantitative equity research. It is designed for developers, financial analysts, and researchers who need a structured, verifiable, and visually dense AI research tool.
+### Research History
+- Track the lifecycle of generated asynchronous research jobs.
+- Access historically generated investment reports containing specialist analysis, evidence registries, and generated evaluation metrics.
 
-**Inputs:**
-The system accepts a standard **Company Name** (e.g., "Apple Inc.") and **Ticker Symbol** (e.g., "AAPL").
+## Technology Stack
 
-**Outputs:**
-A comprehensive, deeply structured JSON research report presented in a premium dark-mode dashboard. Outputs include deterministic financial snapshots, multi-scenario valuations, risk analysis, catalyst identification, and a final synthesized investment thesis with Buy/Hold/Sell recommendations.
+- **Frontend**: React 19, Vite, TypeScript, React Router, Recharts, Lucide React.
+- **Backend**: Python, FastAPI, CrewAI, Google Gemini, Pydantic, yfinance.
+- **Database**: Supabase (PostgreSQL), SQLite.
+- **Authentication**: Supabase Auth (JWT).
 
----
+## Architecture
 
-## 2. Features
-
-### AI Research
-- Orchestrates multiple specialized agent roles using **CrewAI**:
-  - `Market News Analyst`: Evaluates sentiment, macroeconomic conditions, and recent news.
-  - `Risk Analyst`: Identifies structural, competitive, and financial risks.
-  - `Valuation Analyst`: Interprets ratios, DCF inputs, and relative valuation.
-  - `Investment Strategist`: Synthesizes the final thesis, scenarios, and recommendations.
-- Powered by the **Google Gemini API** for deep qualitative reasoning.
-
-### Financial & Market Data
-- Retrieves live pricing, 52-week ranges, beta, and yields via **Yahoo Finance (`yfinance`)**.
-- Retrieves primary financial statements directly from the **SEC EDGAR XBRL Company Facts API**.
-- Retrieves market news and sentiment data via **Marketaux API**.
-
-### Deterministic Financial Calculations
-- The **Financial Metrics Engine** explicitly calculates all critical ratios prior to LLM reasoning.
-- Computes Margins (Gross, Operating, Net, FCF), Returns (ROA, ROE), Efficiency (Asset Turnover, Equity Multiplier), and Growth (CAGR).
-- Core financial calculations are performed deterministically from retrieved data, reducing the risk of numerical hallucinations.
-
-### Evidence & Provenance
-- Implements an **Evidence Registry** that tracks the exact source, unit, and period for every critical data point.
-- Differentiates between retrieved facts, calculated metrics, and AI-generated opinions.
-
-### Research History & Persistence
-- Uses an asynchronous background job system.
-- **Asynchronous Execution:** Background tasks enable long-running generation without blocking HTTP endpoints.
-- **Cloud Persistence:** Supports Supabase PostgreSQL persistence for research jobs, while automated tests use an isolated mock database. Default local execution uses SQLite.
-
-### 5. Evaluation & Reliability Layer
-- **Deterministic Pipeline Tests:** Extensive mocked regression suites across multiple failure scenarios.
-- **Evaluation Mechanism (`utils/evaluation.py`):** Scores final reports deterministically based on data completeness, evidence coverage, and schema validity.
-- **Graceful Degradation:** The pipeline catches HTTP timeouts and missing financials securely without hallucinating inputs.
-- Features a full **Research History** page with route-based reloading (`/research/:jobId`) of historical reports.
-
-### Dashboard
-- A premium, high-density React 19 financial terminal interface.
-- Built with **Vite**, **TypeScript**, and **Recharts**.
-- Uses native CSS variables for a strict, consistent dark-mode design system.
-
----
-
-## 3. Architecture
-
-The system uses a React SPA frontend communicating with a FastAPI backend. The backend manages asynchronous research jobs, calling external APIs, executing the CrewAI orchestration, and persisting results.
+The system follows an asynchronous, secure multi-tier architecture:
 
 ```mermaid
 flowchart TD
+    USER((User))
+    FRONTEND[React Frontend]
+    FASTAPI[FastAPI Backend]
+    AUTH[Supabase Auth]
+    DOMAIN[Domain APIs]
+    DATA[Data Retrieval\nYahoo Finance / SEC / Marketaux]
+    VALIDATION[Data Validation]
+    CALCS[Deterministic Calculations]
+    CREWAI[CrewAI Reasoning\nGemini]
+    EVIDENCE[Evidence Registry]
+    PERSIST[Persistence\nSupabase / SQLite]
+    PRESENTATION[Report Presentation]
 
-    USER[User]
-
-    USER --> FRONTEND[React Frontend]
-
-    FRONTEND --> API[FastAPI API]
-
-    API --> JOB[Research Job Manager]
-
-    JOB --> MARKET[Market Data Tool]
-    JOB --> SEC[SEC Financial Data Tool]
-    JOB --> NEWS[News / Marketaux Tool]
-
-    MARKET --> VALIDATION[Validation / Normalization]
-    SEC --> VALIDATION
-    NEWS --> VALIDATION
-
-    VALIDATION --> METRICS[Financial Metrics Engine]
-
-    METRICS --> AGENTS[CrewAI Research Agents]
-
-    AGENTS --> STRATEGY[Investment Strategist]
-
-    STRATEGY --> REPORT[Structured Research Report JSON]
-
-    REPORT --> DB[Database Abstraction]
-    
-    DB --> SQLITE[(SQLite)]
-    DB --> SUPABASE[(Supabase)]
-    DB --> MOCK[(Mock DB)]
-
-    DB --> HISTORY[Research History]
-
-    REPORT --> FRONTEND
+    USER --> FRONTEND
+    FRONTEND -->|HTTP Requests| FASTAPI
+    FASTAPI --> AUTH
+    AUTH --> DOMAIN
+    DOMAIN --> DATA
+    DATA --> VALIDATION
+    VALIDATION --> CALCS
+    CALCS --> CREWAI
+    CREWAI --> EVIDENCE
+    EVIDENCE --> PERSIST
+    PERSIST --> PRESENTATION
+    PRESENTATION --> FRONTEND
 ```
 
----
+## Project Structure
 
-## 4. Prerequisites
+```text
+CrewAI/
+├── api/                  # FastAPI routes and server configuration
+├── db/                   # Database abstraction layer (Supabase, SQLite, Mock)
+├── frontend/
+│   ├── src/
+│   │   ├── api/          # Frontend API client
+│   │   ├── components/   # Reusable React components (Layout, Auth)
+│   │   ├── contexts/     # Auth Context Provider
+│   │   ├── hooks/        # Custom React hooks
+│   │   ├── pages/        # Route-level pages (Markets, Portfolio, etc.)
+│   │   └── types/        # TypeScript interfaces
+├── services/             # Core business logic and bounded data services
+├── supabase/
+│   └── migrations/       # SQL schemas and RLS definitions
+├── tests/                # Pytest suites (unit & integration)
+├── tools/                # Specialized CrewAI tools (MarketData, SEC, etc.)
+└── utils/                # Helper utilities and validators
+```
 
-- **Python 3.13+**
-- **Node.js 20+**
-- **Google Gemini API Key**: For LLM reasoning.
-- **Marketaux API Key**: For financial news retrieval.
-- **SEC User Agent**: Required format: `AppName your-email@example.com` to comply with SEC Edgar rate limiting.
+## Prerequisites
 
----
+- Node.js 20+
+- Python 3.11+
+- Google Gemini API Key
+- Supabase Account
 
-## 5. Installation & Setup
+## Installation
 
-Clone the repository:
+1. **Clone the repository:**
 ```bash
-git clone https://github.com/vyashemant/CrewAI-AiAgent
+git clone https://github.com/vyashemant/CrewAI-AiAgent.git
 cd CrewAI-AiAgent
 ```
 
-### Backend Setup
-
-1. Create a Python virtual environment:
+2. **Backend Setup:**
 ```bash
+# Windows
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+venv\Scripts\activate
 
-2. Install backend dependencies:
-```bash
+# Linux/macOS
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Frontend Setup
-
-1. Navigate to the frontend directory:
+3. **Frontend Setup:**
 ```bash
 cd frontend
-```
-
-2. Install Node dependencies:
-```bash
 npm install
 ```
 
----
+## Environment Variables
 
-## 6. Configuration
+The project strictly separates public frontend configuration from secure server-side secrets.
 
-Create a `.env` file in the root backend directory:
-
-```bash
-# .env
+### Backend (`.env`)
+Required variables for the FastAPI server:
+```env
 GEMINI_API_KEY=your_gemini_api_key_here
-SEC_USER_AGENT="YourAppName your-email@example.com"
+SEC_USER_AGENT=YourAppName your-email@example.com
 MARKETAUX_API_KEY=your_marketaux_api_key_here
-
-# Database Backend Configuration
-# Valid options: sqlite (default), supabase, mock
-DATABASE_BACKEND=sqlite
-
-# Required ONLY if DATABASE_BACKEND=supabase
+DATABASE_BACKEND=supabase  # Options: supabase, sqlite, mock
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_SECRET_KEY=your_supabase_secret_key
 ```
 
-### Database Configuration
+### Frontend (`frontend/.env`)
+Public configuration for the React application. **Never place secrets here.**
+```env
+VITE_API_BASE_URL=http://localhost:8000
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_public_anon_key
+```
 
-- **SQLite (`sqlite`)**: The default backend, providing a persistent local database for development.
-- **Supabase (`supabase`)**: The production/cloud backend. Requires `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Schema is managed via Supabase migrations.
-- **Mock (`mock`)**: An isolated, in-memory backend exclusively used for testing. It is never automatically used as a fallback.
+## Supabase Setup
 
-#### Supabase Production Setup
+To use the production-ready `DATABASE_BACKEND=supabase`:
 
-To use the Supabase backend in production:
-1. Create a project on [Supabase](https://supabase.com).
-2. Apply the database schema by running the SQL migration in `supabase/migrations/20260908000000_create_research_jobs.sql` via the Supabase CLI or the SQL Editor in your dashboard.
-3. Retrieve your Project URL and Secret Key from your project's API settings.
-4. Add these credentials to your local `.env` file as `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. **Do not hardcode or commit these secrets to source control.**
+1. **Create Supabase project**: Create a new project in the Supabase dashboard.
+2. **Configure authentication**: Enable Email/Password authentication.
+3. **Link repository**: Use the Supabase CLI to link your local repository.
+   ```bash
+   supabase link --project-ref your-project-id
+   ```
+4. **Apply migrations**: Apply the migrations listed below in order.
+   ```bash
+   supabase db push
+   ```
+5. Configure your backend `.env` using the Service Role Secret Key.
+6. Configure your frontend `.env` using the Public Anon Key.
 
+### Database Migrations
+The following migrations are present in `supabase/migrations/` and must be applied:
+- `20260908_create_research_jobs.sql`
+- `20260911_add_started_at.sql`
+- `20260912_add_user_id.sql`
+- `20260913_create_watchlist.sql`
+- `20260914_create_portfolio.sql`
 
----
+## Running Locally
 
-## 7. Running the Application
-
-You need to run both the FastAPI backend and the Vite frontend simultaneously.
-
-**Start the Backend:**
-From the root directory, start the FastAPI server using Uvicorn:
+**Start Backend (FastAPI)**
 ```bash
+# From project root
 uvicorn api.main:app --reload --port 8000
 ```
+Backend runs at: `http://localhost:8000`
 
-**Start the Frontend:**
-From the `frontend` directory, start the Vite development server:
+**Start Frontend (React/Vite)**
 ```bash
-cd frontend
+# From frontend/ directory
 npm run dev
 ```
+Frontend runs at: `http://localhost:5173`
 
-Navigate to `http://localhost:5173` in your browser.
+## API Documentation
 
----
+The backend exposes the following REST APIs, secured via JWT Bearer tokens matching the Supabase Auth signatures.
 
-## 8. API Documentation
+| Method | Path | Auth Req | Purpose |
+|--------|------|----------|---------|
+| `GET`  | `/health` | No | System health check. |
+| `POST` | `/api/v1/research` | Yes | Dispatch an async research job. Body: `{"company": "...", "ticker": "..."}`. |
+| `GET`  | `/api/v1/research/{job_id}` | Yes | Fetch job status and resulting report JSON. |
+| `GET`  | `/api/v1/research/history` | Yes | Retrieve past research reports. Query: `?limit=20`. |
+| `GET`  | `/api/v1/watchlist` | Yes | Get the user's specific watchlist. |
+| `POST` | `/api/v1/watchlist` | Yes | Add to watchlist. Body: `{"ticker": "..."}`. Returns `409` if exists. |
+| `DELETE`| `/api/v1/watchlist/{id}` | Yes | Remove from watchlist. |
+| `GET`  | `/api/v1/markets/quote` | No | Fetch real-time ticker data. Query: `?ticker=AAPL`. |
+| `GET`  | `/api/v1/markets/movers` | No | Fetch top gainers and losers from the bounded universe. |
+| `GET`  | `/api/v1/markets/screener` | No | Filter equities. Query: `?min_pe=10&max_pe=20` etc. |
+| `GET`  | `/api/v1/portfolio` | Yes | List paper portfolio holdings. |
+| `POST` | `/api/v1/portfolio` | Yes | Add a paper holding. Body: `{"ticker": "...", "quantity": 10, "average_cost": 150.0}`. |
+| `PATCH`| `/api/v1/portfolio/{id}` | Yes | Update holding quantities or cost basis. |
+| `DELETE`| `/api/v1/portfolio/{id}` | Yes | Remove a paper holding. |
 
-The FastAPI backend provides a RESTful interface for managing research jobs.
+## Database
 
-### `POST /api/v1/research`
-Submits a new asynchronous research job.
-- **Body:** `{ "company": "Apple Inc.", "ticker": "AAPL" }`
-- **Response (202 Accepted):** `{ "job_id": "uuid", "status": "queued", "created_at": "..." }`
+Alpha Terminal features a robust database abstraction layer (`db.database.DatabaseBackend`). The active backend is controlled by the `DATABASE_BACKEND` environment variable.
 
-### `GET /api/v1/research/{job_id}`
-Polls the status or retrieves the result of a specific research job.
-- **Response (200 OK):** 
-  - If running: `{ "job_id": "...", "status": "running" }`
-  - If completed: `{ "job_id": "...", "status": "completed", "result": { ...Structured JSON... } }`
+- `DATABASE_BACKEND=supabase`: The production standard. Relies on Supabase PostgreSQL with strict Row Level Security (RLS).
+- `DATABASE_BACKEND=sqlite`: A local fallback that persists to `crewai.db`. Uses identical logical isolation checks as RLS.
+- `DATABASE_BACKEND=mock`: A strictly in-memory transient store used explicitly for testing. This is not an automatic fallback for production.
 
-### `GET /api/v1/research/history`
-Retrieves a paginated list of all historical research jobs.
-- **Query Params:** `limit` (default 20, max 100)
-- **Response (200 OK):** `{ "research": [ { "job_id": "...", "status": "completed", "company": "Apple Inc.", ... } ] }`
+**Core Tables:**
+- `research_jobs`: Tracks the async lifecycle and JSON outputs of AI research.
+- `watchlist`: Stores user-specific isolated ticker tracks.
+- `portfolio_holdings`: Stores user-specific simulated equity allocations.
 
----
+## Testing
 
-## 9. Testing
+Alpha Terminal is thoroughly tested using `pytest`.
 
-The repository includes a comprehensive `pytest` suite for the backend, verifying API contracts, state transitions, job persistence, and financial metric calculations.
-
-To run the backend tests:
 ```bash
-pytest test_api.py -v
+# Run the complete API test suite
+$env:PYTHONPATH="."
+pytest
 ```
+*Note for macOS/Linux use `PYTHONPATH="." pytest`.*
 
-Tests ensure that:
-- API endpoint validation is strict (empty bodies, missing fields).
-- Job limits and ordering work properly.
-- The state machine (`queued` -> `running` -> `completed`/`failed`) functions correctly.
-- Application persistence simulates database restarts securely.
+Tests cover API contracts, consistency, mock DB validations, stale job recovery, financial edge cases, and pipeline stability.
+
+## Security Notes
+
+- **Environment Variables**: Never commit `.env` files containing secrets.
+- **Supabase Keys**: The frontend ONLY receives the `VITE_SUPABASE_ANON_KEY`. The `SUPABASE_SECRET_KEY` must strictly remain on the backend.
+- **Data Protection**: Supabase Row Level Security (RLS) policies enforce that users can only read, insert, update, or delete their own isolated `user_id` rows. Bypassing RLS is strictly prohibited.
+- **Identity Verification**: The backend relies entirely on the securely decoded JWT identity token to perform actions, discarding unverified client assertions of identity.
+- **Simulated Scope**: The paper portfolio is completely simulated and does not utilize any broker API keys or transmit trade execution signals.
+
+## Known Limitations
+
+- **Market Universe**: The stock screener and market movers currently evaluate a bounded universe of major equities rather than the entirety of the US stock market, to prevent extreme concurrent load and rate-limiting against Yahoo Finance.
+- **YFinance Reliability**: Fetching live quotes is dependent on the uptime and throttling limits of the unofficial `yfinance` library.
+- **Research Generation Time**: Comprehensive autonomous research via CrewAI and Gemini can take multiple minutes to generate, depending on complexity.
+
+## Disclaimer
+
+**For Research and Informational Purposes Only.**
+Alpha Terminal and its generated AI reports do not constitute personalized financial or investment advice. The paper portfolio module does not execute real trades, does not connect to real brokerages, and is purely for educational simulation. Perform your own due diligence before making real investment decisions.
