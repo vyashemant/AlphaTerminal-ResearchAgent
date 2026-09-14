@@ -55,6 +55,22 @@ class DatabaseBackend(ABC):
     def delete_watchlist_item(self, id: str, user_id: str, db_path=None):
         pass
 
+    @abstractmethod
+    def add_portfolio_item(self, id: str, user_id: str, ticker: str, company_name: str, quantity: float, average_cost: float, created_at: str, updated_at: str, db_path=None):
+        pass
+
+    @abstractmethod
+    def update_portfolio_item(self, id: str, user_id: str, quantity: float, average_cost: float, updated_at: str, db_path=None):
+        pass
+
+    @abstractmethod
+    def list_portfolio(self, user_id: str, db_path=None) -> list:
+        pass
+
+    @abstractmethod
+    def delete_portfolio_item(self, id: str, user_id: str, db_path=None):
+        pass
+
 
 class SQLiteBackend(DatabaseBackend):
     @contextmanager
@@ -122,6 +138,20 @@ class SQLiteBackend(DatabaseBackend):
                     ticker TEXT NOT NULL,
                     company_name TEXT,
                     created_at TEXT NOT NULL,
+                    UNIQUE(user_id, ticker)
+                )
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS portfolio_holdings (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    ticker TEXT NOT NULL,
+                    company_name TEXT,
+                    quantity REAL NOT NULL,
+                    average_cost REAL NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
                     UNIQUE(user_id, ticker)
                 )
             """)
@@ -237,6 +267,53 @@ class SQLiteBackend(DatabaseBackend):
                 conn.commit()
         except Exception as e:
             raise PersistenceError("SQLite delete_watchlist_item failed") from e
+
+    def add_portfolio_item(self, id: str, user_id: str, ticker: str, company_name: str, quantity: float, average_cost: float, created_at: str, updated_at: str, db_path=None):
+        try:
+            with self._get_db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO portfolio_holdings (id, user_id, ticker, company_name, quantity, average_cost, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (id, user_id, ticker, company_name, quantity, average_cost, created_at, updated_at))
+                conn.commit()
+        except sqlite3.IntegrityError as e:
+            if "UNIQUE constraint failed" in str(e).lower() or "unique" in str(e).lower():
+                raise ItemExistsError(f"Portfolio holding already exists for ticker {ticker}") from e
+            raise PersistenceError("SQLite add_portfolio_item failed") from e
+        except Exception as e:
+            raise PersistenceError("SQLite add_portfolio_item failed") from e
+
+    def update_portfolio_item(self, id: str, user_id: str, quantity: float, average_cost: float, updated_at: str, db_path=None):
+        try:
+            with self._get_db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE portfolio_holdings 
+                    SET quantity = ?, average_cost = ?, updated_at = ?
+                    WHERE id = ? AND user_id = ?
+                """, (quantity, average_cost, updated_at, id, user_id))
+                conn.commit()
+        except Exception as e:
+            raise PersistenceError("SQLite update_portfolio_item failed") from e
+
+    def list_portfolio(self, user_id: str, db_path=None) -> list:
+        try:
+            with self._get_db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM portfolio_holdings WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            raise PersistenceError("SQLite list_portfolio failed") from e
+
+    def delete_portfolio_item(self, id: str, user_id: str, db_path=None):
+        try:
+            with self._get_db_connection(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM portfolio_holdings WHERE id = ? AND user_id = ?", (id, user_id))
+                conn.commit()
+        except Exception as e:
+            raise PersistenceError("SQLite delete_portfolio_item failed") from e
 
 
 class SupabaseBackend(DatabaseBackend):
@@ -377,16 +454,65 @@ class SupabaseBackend(DatabaseBackend):
             logger.error(f"Supabase write error (delete_watchlist_item)")
             raise PersistenceError("Supabase delete_watchlist_item failed") from e
 
+    def add_portfolio_item(self, id: str, user_id: str, ticker: str, company_name: str, quantity: float, average_cost: float, created_at: str, updated_at: str, db_path=None):
+        data = {
+            "id": id,
+            "user_id": user_id,
+            "ticker": ticker,
+            "company_name": company_name,
+            "quantity": quantity,
+            "average_cost": average_cost,
+            "created_at": created_at,
+            "updated_at": updated_at
+        }
+        try:
+            self._client.table("portfolio_holdings").insert(data).execute()
+        except Exception as e:
+            err_str = str(e).lower()
+            if "unique constraint" in err_str or "duplicate key" in err_str:
+                raise ItemExistsError(f"Portfolio holding already exists for ticker {ticker}") from e
+            logger.error(f"Supabase write error (add_portfolio_item)")
+            raise PersistenceError("Supabase add_portfolio_item failed") from e
+
+    def update_portfolio_item(self, id: str, user_id: str, quantity: float, average_cost: float, updated_at: str, db_path=None):
+        updates = {
+            "quantity": quantity,
+            "average_cost": average_cost,
+            "updated_at": updated_at
+        }
+        try:
+            self._client.table("portfolio_holdings").update(updates).eq("id", id).eq("user_id", user_id).execute()
+        except Exception as e:
+            logger.error(f"Supabase write error (update_portfolio_item)")
+            raise PersistenceError("Supabase update_portfolio_item failed") from e
+
+    def list_portfolio(self, user_id: str, db_path=None) -> list:
+        try:
+            response = self._client.table("portfolio_holdings").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Supabase read error (list_portfolio)")
+            raise PersistenceError("Supabase list_portfolio failed") from e
+
+    def delete_portfolio_item(self, id: str, user_id: str, db_path=None):
+        try:
+            self._client.table("portfolio_holdings").delete().eq("id", id).eq("user_id", user_id).execute()
+        except Exception as e:
+            logger.error(f"Supabase write error (delete_portfolio_item)")
+            raise PersistenceError("Supabase delete_portfolio_item failed") from e
+
 
 class MockBackend(DatabaseBackend):
     """In-memory dictionary exclusively for explicit testing mode."""
     def __init__(self):
         self._mock_db: Dict[str, dict] = {}
         self._mock_watchlist: Dict[str, dict] = {}
+        self._mock_portfolio: Dict[str, dict] = {}
 
     def clear(self):
         self._mock_db.clear()
         self._mock_watchlist.clear()
+        self._mock_portfolio.clear()
 
     def init_db(self, db_path=None):
         pass
@@ -472,6 +598,37 @@ class MockBackend(DatabaseBackend):
         if id in self._mock_watchlist and self._mock_watchlist[id].get("user_id") == user_id:
             del self._mock_watchlist[id]
 
+    def add_portfolio_item(self, id: str, user_id: str, ticker: str, company_name: str, quantity: float, average_cost: float, created_at: str, updated_at: str, db_path=None):
+        for item in self._mock_portfolio.values():
+            if item.get("user_id") == user_id and item.get("ticker") == ticker:
+                raise ItemExistsError(f"Portfolio holding already exists for ticker {ticker}")
+        
+        self._mock_portfolio[id] = {
+            "id": id,
+            "user_id": user_id,
+            "ticker": ticker,
+            "company_name": company_name,
+            "quantity": quantity,
+            "average_cost": average_cost,
+            "created_at": created_at,
+            "updated_at": updated_at
+        }
+
+    def update_portfolio_item(self, id: str, user_id: str, quantity: float, average_cost: float, updated_at: str, db_path=None):
+        if id in self._mock_portfolio and self._mock_portfolio[id].get("user_id") == user_id:
+            self._mock_portfolio[id]["quantity"] = quantity
+            self._mock_portfolio[id]["average_cost"] = average_cost
+            self._mock_portfolio[id]["updated_at"] = updated_at
+
+    def list_portfolio(self, user_id: str, db_path=None) -> list:
+        items = [item.copy() for item in self._mock_portfolio.values() if item.get("user_id") == user_id]
+        items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return items
+
+    def delete_portfolio_item(self, id: str, user_id: str, db_path=None):
+        if id in self._mock_portfolio and self._mock_portfolio[id].get("user_id") == user_id:
+            del self._mock_portfolio[id]
+
 
 # Singleton setup logic
 _db_instance: Optional[DatabaseBackend] = None
@@ -534,6 +691,18 @@ def list_watchlist(user_id: str, db_path=None) -> list:
 
 def delete_watchlist_item(id: str, user_id: str, db_path=None):
     get_db().delete_watchlist_item(id, user_id, db_path)
+
+def add_portfolio_item(id: str, user_id: str, ticker: str, company_name: str, quantity: float, average_cost: float, created_at: str, updated_at: str, db_path=None):
+    get_db().add_portfolio_item(id, user_id, ticker, company_name, quantity, average_cost, created_at, updated_at, db_path)
+
+def update_portfolio_item(id: str, user_id: str, quantity: float, average_cost: float, updated_at: str, db_path=None):
+    get_db().update_portfolio_item(id, user_id, quantity, average_cost, updated_at, db_path)
+
+def list_portfolio(user_id: str, db_path=None) -> list:
+    return get_db().list_portfolio(user_id, db_path)
+
+def delete_portfolio_item(id: str, user_id: str, db_path=None):
+    get_db().delete_portfolio_item(id, user_id, db_path)
 
 def set_testing_mode(enabled: bool):
     """

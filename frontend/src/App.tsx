@@ -4,6 +4,9 @@ import { Research } from './pages/Research';
 import { History } from './pages/History';
 import { Watchlist } from './pages/Watchlist';
 import { AuthPage } from './pages/AuthPage';
+import { Markets } from './pages/Markets';
+import { Screeners } from './pages/Screeners';
+import { Portfolio } from './pages/Portfolio';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopNav } from './components/layout/TopNav';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -43,6 +46,9 @@ function App() {
               <Route path="/research/:jobId" element={<Research />} />
               <Route path="/history" element={<History />} />
               <Route path="/watchlist" element={<Watchlist />} />
+              <Route path="/markets" element={<Markets />} />
+              <Route path="/screeners" element={<Screeners />} />
+              <Route path="/portfolio" element={<Portfolio />} />
             </Route>
           </Routes>
         </div>

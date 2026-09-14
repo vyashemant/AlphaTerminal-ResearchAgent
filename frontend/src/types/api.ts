@@ -168,3 +168,56 @@ export interface WatchlistItem {
 export interface WatchlistResponse {
     watchlist: WatchlistItem[];
 }
+
+export interface PortfolioItemRequest {
+    ticker: string;
+    company_name?: string;
+    quantity: number;
+    average_cost: number;
+}
+
+export interface PortfolioItemUpdate {
+    quantity: number;
+    average_cost: number;
+}
+
+export interface PortfolioItem {
+    id: string;
+    ticker: string;
+    company_name?: string;
+    quantity: number;
+    average_cost: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PortfolioResponse {
+    portfolio: PortfolioItem[];
+}
+
+export interface MarketMoverItem {
+    ticker: string;
+    company: string;
+    price: number;
+    day_change_pct: number;
+    market_cap?: number;
+}
+
+export interface MarketMoversResponse {
+    gainers: MarketMoverItem[];
+    losers: MarketMoverItem[];
+}
+
+export interface ScreenerItem {
+    ticker: string;
+    company: string;
+    price: number;
+    day_change_pct: number;
+    market_cap?: number;
+    pe?: number;
+    forward_pe?: number;
+    ps?: number;
+    pb?: number;
+    beta?: number;
+    dividend_yield?: number;
+}
