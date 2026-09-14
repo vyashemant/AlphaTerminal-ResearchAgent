@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Terminal, Database, BrainCircuit, Activity } from 'lucide-react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Terminal, Database, BrainCircuit, Activity, Star, StarOff } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { useResearchPolling } from '../hooks/useResearchPolling';
 import { ResearchDashboard } from '../components/dashboard/ResearchDashboard';
@@ -8,10 +8,17 @@ import { ResearchDashboard } from '../components/dashboard/ResearchDashboard';
 export function Research() {
     const { jobId: urlJobId } = useParams<{ jobId: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     
-    const [company, setCompany] = useState('');
-    const [ticker, setTicker] = useState('');
+    const [company, setCompany] = useState(searchParams.get('company') || '');
+    const [ticker, setTicker] = useState(searchParams.get('ticker') || '');
     const [submitting, setSubmitting] = useState(false);
+
+    // Watchlist state
+    const [isInWatchlist, setIsInWatchlist] = useState(false);
+    const [watchlistItemId, setWatchlistItemId] = useState<string | null>(null);
+    const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
+    const [watchlistActionError, setWatchlistActionError] = useState<string | null>(null);
 
     const { jobId, setJobId, status, result, error, setError } = useResearchPolling(urlJobId || null);
 
@@ -20,6 +27,86 @@ export function Research() {
             setJobId(urlJobId || null);
         }
     }, [urlJobId, setJobId, jobId]);
+
+    // Check watchlist when research is completed
+    useEffect(() => {
+        if (status === 'completed' && result?.result) {
+            const ticker = result.result.ticker;
+            if (!ticker || typeof ticker !== 'string' || ticker.trim() === '') {
+                return;
+            }
+
+            const checkWatchlist = async () => {
+                setIsWatchlistLoading(true);
+                try {
+                    const response = await ApiClient.getWatchlist();
+                    const existingItem = response.watchlist.find(
+                        (item) => item.ticker.toUpperCase() === ticker.toUpperCase()
+                    );
+                    if (existingItem) {
+                        setIsInWatchlist(true);
+                        setWatchlistItemId(existingItem.id);
+                    } else {
+                        setIsInWatchlist(false);
+                        setWatchlistItemId(null);
+                    }
+                } catch (err) {
+                    console.error('Failed to check watchlist status', err);
+                } finally {
+                    setIsWatchlistLoading(false);
+                }
+            };
+            checkWatchlist();
+        }
+    }, [status, result]);
+
+    const handleWatchlistAction = async () => {
+        if (!result?.result) return;
+        const ticker = result.result.ticker;
+        if (!ticker || typeof ticker !== 'string' || ticker.trim() === '') return;
+
+        setWatchlistActionError(null);
+        setIsWatchlistLoading(true);
+
+        try {
+            if (isInWatchlist && watchlistItemId) {
+                // Remove
+                await ApiClient.removeWatchlistItem(watchlistItemId);
+                setIsInWatchlist(false);
+                setWatchlistItemId(null);
+            } else {
+                // Add
+                const addedItem = await ApiClient.addWatchlistItem({
+                    ticker: ticker,
+                    company_name: result.result.company || ''
+                });
+                setIsInWatchlist(true);
+                setWatchlistItemId(addedItem.id);
+            }
+        } catch (err: any) {
+            // Handle 409 Conflict specifically
+            if (err.status === 409) {
+                try {
+                    const response = await ApiClient.getWatchlist();
+                    const existingItem = response.watchlist.find(
+                        (item) => item.ticker.toUpperCase() === ticker.toUpperCase()
+                    );
+                    if (existingItem) {
+                        setIsInWatchlist(true);
+                        setWatchlistItemId(existingItem.id);
+                    } else {
+                        setIsInWatchlist(true); // Fallback if somehow not found
+                    }
+                } catch (fetchErr) {
+                    setIsInWatchlist(true); // Fallback
+                }
+            } else {
+                setWatchlistActionError(err.message || 'Watchlist action failed');
+            }
+        } finally {
+            setIsWatchlistLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -54,11 +141,43 @@ export function Research() {
                                 )}
                             </div>
                         </div>
-                        <button className="action-btn" onClick={() => navigate('/research')} style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.75rem' }}>
-                            START NEW
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {status === 'completed' && result?.result && result.result.ticker && typeof result.result.ticker === 'string' && result.result.ticker.trim() !== '' && (
+                                <button 
+                                    className="action-btn" 
+                                    onClick={handleWatchlistAction} 
+                                    disabled={isWatchlistLoading}
+                                    style={{ 
+                                        padding: '0.5rem 1rem', 
+                                        backgroundColor: isInWatchlist ? 'var(--bg-secondary)' : 'var(--accent-light)',
+                                        color: isInWatchlist ? 'var(--text-primary)' : 'var(--bg-primary)',
+                                        border: '1px solid var(--border)', 
+                                        borderRadius: '4px', 
+                                        fontSize: '0.75rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        fontWeight: 600,
+                                        opacity: isWatchlistLoading ? 0.7 : 1
+                                    }}
+                                >
+                                    {isWatchlistLoading ? (
+                                        'LOADING...'
+                                    ) : isInWatchlist ? (
+                                        <><StarOff size={14} /> REMOVE FROM WATCHLIST</>
+                                    ) : (
+                                        <><Star size={14} /> ADD TO WATCHLIST</>
+                                    )}
+                                </button>
+                            )}
+                            <button className="action-btn" onClick={() => navigate('/research')} style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.75rem' }}>
+                                START NEW
+                            </button>
+                        </div>
                     </div>
                 </div>
+
+                {watchlistActionError && <div className="badge badge-warning" style={{ display: 'block', padding: '1rem', marginBottom: '1.5rem' }}>Watchlist Error: {watchlistActionError}</div>}
 
                 {error && <div className="badge badge-danger" style={{ display: 'block', padding: '1rem', marginBottom: '1.5rem' }}>{error}</div>}
                 
