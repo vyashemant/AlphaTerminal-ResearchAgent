@@ -15,22 +15,24 @@ export function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchDashboardData = async () => {
-            try {
-                // Request up to 100 items for accurate statistics
-                const historyResponse = await ApiClient.getResearchHistory(100);
-                setHistory(historyResponse.research);
-                
-                const watchlistResponse = await ApiClient.getWatchlist();
-                setWatchlistCount(watchlistResponse.watchlist.length);
-            } catch (err: any) {
-                setError(err.message || 'Failed to fetch dashboard data');
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchDashboardData = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            // Request up to 100 items for accurate statistics
+            const historyResponse = await ApiClient.getResearchHistory(100);
+            setHistory(historyResponse.research);
+            
+            const watchlistResponse = await ApiClient.getWatchlist();
+            setWatchlistCount(watchlistResponse.watchlist.length);
+        } catch (err: any) {
+            setError(err.message || 'Failed to fetch dashboard data');
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchDashboardData();
     }, []);
 
@@ -81,8 +83,27 @@ export function Dashboard() {
                     <div style={{ fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>Loading dashboard data...</div>
                 </div>
             ) : error ? (
-                <div className="panel" style={{ color: 'var(--danger)', borderLeft: '2px solid var(--danger)', padding: '1rem' }}>
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>ERROR: {error}</div>
+                <div className="panel" style={{ color: 'var(--danger)', borderLeft: '2px solid var(--danger)', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                        <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.25rem' }}>Unable to load dashboard data</div>
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: '0.875rem', opacity: 0.8 }}>Technical details: {error}</div>
+                    </div>
+                    <button 
+                        className="action-btn"
+                        onClick={fetchDashboardData}
+                        style={{
+                            alignSelf: 'flex-start',
+                            background: 'var(--bg-hover)',
+                            border: '1px solid var(--border)',
+                            padding: '0.5rem 1rem',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                            color: 'var(--text-primary)'
+                        }}
+                    >
+                        Retry Connection
+                    </button>
                 </div>
             ) : history.length === 0 ? (
                 <div className="panel" style={{ padding: '4rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>

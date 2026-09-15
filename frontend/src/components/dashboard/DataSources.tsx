@@ -9,7 +9,7 @@ export function DataSourcesSection({ sources }: Props) {
     if (!sources) return null;
 
     return (
-        <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.85rem' }}>
+        <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Data Sources</h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
                 <span><strong>Market Data:</strong> {sources.market_data}</span>

@@ -67,7 +67,7 @@ export const AuthPage: React.FC = () => {
         transform: 'translate(-50%, -50%)',
         width: '600px',
         height: '600px',
-        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.05) 0%, rgba(15, 17, 26, 0) 70%)',
+        background: 'radial-gradient(circle, var(--accent-bg) 0%, transparent 70%)',
         pointerEvents: 'none',
         zIndex: 0
       }} />

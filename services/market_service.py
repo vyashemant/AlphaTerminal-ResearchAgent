@@ -43,7 +43,7 @@ def _fetch_ticker_data(ticker: str):
             "ps": info.get("priceToSalesTrailing12Months"),
             "pb": info.get("priceToBook"),
             "beta": info.get("beta"),
-            "dividend_yield": info.get("dividendYield", 0) * 100 if info.get("dividendYield") else 0,
+            "dividend_yield": info.get("dividendYield", 0) if info.get("dividendYield") else 0,
             "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
             "fifty_two_week_low": info.get("fiftyTwoWeekLow")
         }

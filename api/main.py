@@ -180,7 +180,7 @@ def ready():
     try:
         import db.database as db
         # A simple connectivity check that doesn't block heavily
-        db.list_watchlist(user_id="system-ready-check")
+        db.list_watchlist(user_id="00000000-0000-0000-0000-000000000000")
         return {"status": "ok"}
     except Exception as e:
         logger.error(f"Readiness check failed: {e}")

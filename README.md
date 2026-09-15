@@ -8,7 +8,7 @@
 Alpha Terminal — AI Investment Research Platform
 
 ## 2. Short Project Description
-Alpha Terminal provides sophisticated market intelligence by executing deep fundamental analysis. It retrieves real-time financial data, validates metrics deterministically, and synthesizes reports using a multi-agent AI system. It features a modern, dark-themed, fintech-inspired React dashboard backed by a high-performance FastAPI server and Supabase for authentication and persistence.
+Alpha Terminal provides sophisticated market intelligence by executing deep fundamental analysis. It retrieves real-time financial data, validates metrics deterministically, and synthesizes reports using a multi-agent AI system. It features a modern, dual-themed (Light/Dark), fintech-inspired React dashboard backed by a high-performance FastAPI server and Supabase for authentication and persistence.
 
 ## 3. Key Features
 - **AI-Powered Research**: Multi-agent system that analyzes SEC filings, earnings transcripts, and news to generate comprehensive investment strategies.
@@ -33,7 +33,7 @@ The platform operates a clear separation of concerns between raw data processing
 9. **Presentation**: Render the report in the React frontend.
 
 ## 5. Tech Stack
-- **Frontend**: React 19, Vite, TypeScript, React Router, Recharts, Lucide Icons, vanilla CSS (Dark Fintech theme).
+- **Frontend**: React 19, Vite, TypeScript, React Router, Recharts, Lucide Icons, vanilla CSS (Light/Dark theme).
 - **Backend**: FastAPI, Python 3.10+, Pydantic, yfinance, TTLCache (cachetools).
 - **AI / Agents**: CrewAI, Google Gemini (`gemini-2.5-pro`).
 - **Database / Auth**: Supabase (PostgreSQL), SQLite (fallback/mock).
@@ -86,7 +86,7 @@ The backend uses a scalable PostgreSQL abstraction supporting Supabase.
 **Migrations**:
 - `20260908_create_research_jobs.sql`: Stores asynchronous reports.
 - `20260911_add_started_at.sql`: Lifecycle tracking.
-- `20260911_add_user_id.sql`: Enforces RLS and ownership.
+- `20260912_add_user_id.sql`: Enforces RLS and ownership.
 - `20260913_create_watchlist.sql`: Watchlist persistence.
 - `20260914_create_portfolio.sql`: Paper portfolio holdings.
 
@@ -188,24 +188,58 @@ The project uses `pytest` for backend assertions. Tests cover research flow, scr
 pytest tests/
 ```
 
-## 25. Production/Deployment Notes
-- The backend should be deployed to a scalable provider (e.g. Render, AWS, GCP) behind an ASGI server like Gunicorn.
-- The frontend should be built (`npm run build`) and served statically via Vercel, Netlify, or an S3 bucket.
+## 25. Docker & Deployment
+
+Alpha Terminal includes Docker support for reproducible environments.
+
+### Building and Starting
+To start the entire stack using Docker Compose:
+```bash
+docker-compose up --build -d
+```
+
+### Endpoints
+- **Backend**: `http://localhost:8000`
+- **Frontend**: `http://localhost:5173`
+- **Backend Health Check**: `http://localhost:8000/health` (Liveness)
+- **Backend Readiness Check**: `http://localhost:8000/ready` (Application/DB availability)
+
+### Environment Variables
+Environment variables must be provided in `.env` (backend) and `frontend/.env` (frontend).
+
+**Required backend variables (`.env`)**:
+- `DATABASE_BACKEND` (sqlite, mock, or supabase)
+- `GEMINI_API_KEY`, `MARKETAUX_API_KEY`, `SEC_USER_AGENT`
+- `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (if using Supabase)
+
+**Required frontend variables (`frontend/.env`)**:
+- `VITE_API_BASE_URL=http://localhost:8000`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+**SECURITY WARNING**: 
+- `SUPABASE_SECRET_KEY` is a backend-only secret and must **NEVER** be exposed to the frontend.
+- Variables prefixed with `VITE_` are baked into the frontend bundle; do NOT place secrets here.
+- Never commit `.env` files to version control.
+
+## 26. Production/Deployment Notes
+- The backend should be deployed to a scalable provider (e.g. Render, AWS, GCP) running the Docker container or via an ASGI server.
+- The frontend can be served via the Docker container (which uses nginx) or deployed statically to Vercel, Netlify, or an S3 bucket.
 - Set `DATABASE_BACKEND=supabase` in production.
 
-## 26. Security Notes
+## 27. Security Notes
 - The `SUPABASE_SECRET_KEY` resides strictly on the backend.
 - The frontend only utilizes the `SUPABASE_ANON_KEY`.
-- Backend endpoints inherently trust the decoded JWT `user_id` and do not allow client-supplied IDs.
+- Backend endpoints derive the authenticated user identity from the verified Supabase access token and do not allow client-supplied user IDs.
 - Supabase RLS policies enforce user-scoped access to protected application data.
 
-## 27. Known Limitations
+## 28. Known Limitations
 - The Screener currently operates on a bounded ticker universe (e.g., major indices) to prevent breaching free-tier API rate limits.
 - Yahoo Finance (`yfinance`) dependency is subject to upstream rate-limiting or layout changes.
 - Research history retrieves a maximum of 100 recent jobs.
 
-## 28. Future Roadmap
+## 29. Future Roadmap
 - **Production Observability**: Implement Sentry / Datadog for tracing asynchronous AI workflows.
 - **Expanded Universe**: Shift to a commercial data vendor (e.g., Polygon.io) for an unbounded market screener.
 - **Websockets**: Transition from HTTP polling to Websockets for live research progress updates.
-- **CI/CD Integration**: Fully automate testing and deployments via GitHub Actions.
+- **Deployment Automation**: Automate production deployments through the existing CI pipeline.

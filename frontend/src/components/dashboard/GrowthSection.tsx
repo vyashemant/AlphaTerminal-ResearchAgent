@@ -16,7 +16,7 @@ export function GrowthSection({ trend, metrics }: Props) {
                     <span className="metric-value">
                         {trend?.revenue_cagr !== undefined && trend?.revenue_cagr !== null 
                             ? formatFractionAsPercentage(trend.revenue_cagr) 
-                            : <span style={{fontSize: '0.9rem', color: '#94a3b8'}}>Data unavailable</span>}
+                            : <span style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>Data unavailable</span>}
                     </span>
                     <span className="metric-label">Revenue CAGR</span>
                 </div>
@@ -24,7 +24,7 @@ export function GrowthSection({ trend, metrics }: Props) {
                     <span className="metric-value">
                         {trend?.net_income_cagr !== undefined && trend?.net_income_cagr !== null 
                             ? formatFractionAsPercentage(trend.net_income_cagr) 
-                            : <span style={{fontSize: '0.9rem', color: '#94a3b8'}}>Data unavailable</span>}
+                            : <span style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>Data unavailable</span>}
                     </span>
                     <span className="metric-label">Net Income CAGR</span>
                 </div>
@@ -32,7 +32,7 @@ export function GrowthSection({ trend, metrics }: Props) {
                     <span className="metric-value">
                         {metrics.revenue_growth !== undefined && metrics.revenue_growth !== null 
                             ? formatFractionAsPercentage(metrics.revenue_growth) 
-                            : <span style={{fontSize: '0.9rem', color: '#94a3b8'}}>Data unavailable</span>}
+                            : <span style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>Data unavailable</span>}
                     </span>
                     <span className="metric-label">YoY Revenue Growth</span>
                 </div>
@@ -40,7 +40,7 @@ export function GrowthSection({ trend, metrics }: Props) {
                     <span className="metric-value">
                         {metrics.net_income_growth !== undefined && metrics.net_income_growth !== null 
                             ? formatFractionAsPercentage(metrics.net_income_growth) 
-                            : <span style={{fontSize: '0.9rem', color: '#94a3b8'}}>Data unavailable</span>}
+                            : <span style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>Data unavailable</span>}
                     </span>
                     <span className="metric-label">YoY Net Income Growth</span>
                 </div>

@@ -245,7 +245,7 @@ export const Markets: React.FC = () => {
             )}
             <style>{`
                 .table-row-hover:hover {
-                    background-color: rgba(255, 255, 255, 0.02);
+                    background-color: var(--bg-hover);
                 }
             `}</style>
         </div>

@@ -117,3 +117,14 @@ def test_portfolio_user_isolation(monkeypatch):
     assert not any(i["ticker"] == "MSFT" for i in res_get2.json()["portfolio"])
     
     app.dependency_overrides.clear()
+
+def test_dividend_yield_scaling(monkeypatch):
+    import services.market_service
+    async def mock_universe():
+        return [{"ticker": "AAPL", "price": 150, "dividend_yield": 0.32}]
+    monkeypatch.setattr(services.market_service, "fetch_universe_data", mock_universe)
+    
+    res = client.get("/api/v1/markets/screener")
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["dividend_yield"] == 0.32

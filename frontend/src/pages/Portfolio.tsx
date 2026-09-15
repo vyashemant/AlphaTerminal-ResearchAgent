@@ -123,12 +123,13 @@ export const Portfolio: React.FC = () => {
     const formatPct = (val: number) => `${val.toFixed(2)}%`;
 
     // Calculations
+    const anyPriceMissing = holdings.some(h => prices[h.ticker] === undefined);
     const enrichedHoldings = holdings.map(item => {
-        const currentPrice = prices[item.ticker] || 0;
+        const currentPrice = prices[item.ticker];
         const invested = item.quantity * item.average_cost;
-        const marketValue = item.quantity * currentPrice;
-        const unrealizedPL = marketValue - invested;
-        const unrealizedPLPct = invested > 0 ? (unrealizedPL / invested) * 100 : 0;
+        const marketValue = currentPrice !== undefined ? item.quantity * currentPrice : undefined;
+        const unrealizedPL = marketValue !== undefined ? marketValue - invested : undefined;
+        const unrealizedPLPct = (unrealizedPL !== undefined && invested > 0) ? (unrealizedPL / invested) * 100 : undefined;
         return {
             ...item,
             currentPrice,
@@ -140,15 +141,19 @@ export const Portfolio: React.FC = () => {
     });
 
     const totalInvested = enrichedHoldings.reduce((sum, item) => sum + item.invested, 0);
-    const totalValue = enrichedHoldings.reduce((sum, item) => sum + item.marketValue, 0);
+    const totalValue = (!loading && !anyPriceMissing) 
+        ? enrichedHoldings.reduce((sum, item) => sum + (item.marketValue || 0), 0) 
+        : undefined;
 
     const enrichedHoldingsWithWeight = enrichedHoldings.map(item => ({
         ...item,
-        weight: totalValue > 0 ? (item.marketValue / totalValue) * 100 : 0
+        weight: (totalValue !== undefined && totalValue > 0 && item.marketValue !== undefined) 
+            ? (item.marketValue / totalValue) * 100 
+            : 0
     }));
 
-    const totalUnrealizedPL = totalValue - totalInvested;
-    const totalUnrealizedPLPct = totalInvested > 0 ? (totalUnrealizedPL / totalInvested) * 100 : 0;
+    const totalUnrealizedPL = totalValue !== undefined ? totalValue - totalInvested : undefined;
+    const totalUnrealizedPLPct = (totalUnrealizedPL !== undefined && totalInvested > 0) ? (totalUnrealizedPL / totalInvested) * 100 : undefined;
     
     const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4'];
 
@@ -173,7 +178,9 @@ export const Portfolio: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
                 <div className="panel" style={{ padding: '1.5rem' }}>
                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Total Market Value</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>{formatCurrency(totalValue)}</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {loading ? 'Loading...' : (totalValue !== undefined ? formatCurrency(totalValue) : '—')}
+                    </div>
                 </div>
                 <div className="panel" style={{ padding: '1.5rem' }}>
                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Total Invested</div>
@@ -181,9 +188,17 @@ export const Portfolio: React.FC = () => {
                 </div>
                 <div className="panel" style={{ padding: '1.5rem' }}>
                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Unrealized P/L</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 600, color: totalUnrealizedPL >= 0 ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {totalUnrealizedPL >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-                        {totalUnrealizedPL > 0 ? '+' : ''}{formatCurrency(totalUnrealizedPL)} ({formatPct(totalUnrealizedPLPct)})
+                    <div style={{ fontSize: '1.5rem', fontWeight: 600, color: totalUnrealizedPL !== undefined ? (totalUnrealizedPL >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {loading ? (
+                            'Loading...'
+                        ) : totalUnrealizedPL !== undefined && totalUnrealizedPLPct !== undefined ? (
+                            <>
+                                {totalUnrealizedPL >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+                                {totalUnrealizedPL > 0 ? '+' : ''}{formatCurrency(totalUnrealizedPL)} ({formatPct(totalUnrealizedPLPct)})
+                            </>
+                        ) : (
+                            '—'
+                        )}
                     </div>
                 </div>
             </div>
@@ -195,35 +210,37 @@ export const Portfolio: React.FC = () => {
                 </div>
             )}
 
-            {!loading && enrichedHoldingsWithWeight.length > 0 && (
-                <div className="panel" style={{ marginBottom: '2rem', height: '300px' }}>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {!loading && enrichedHoldingsWithWeight.length > 0 && totalValue !== undefined && (
+                <div className="panel" style={{ marginBottom: '2rem', height: '240px', display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <PieChartIcon size={16} /> Allocation
                     </h3>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={enrichedHoldingsWithWeight}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="marketValue"
-                                nameKey="ticker"
-                            >
-                                {enrichedHoldingsWithWeight.map((_, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <RechartsTooltip 
-                                formatter={(value: any) => formatCurrency(Number(value))}
-                                contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '4px' }}
-                                itemStyle={{ color: 'var(--text-primary)' }}
-                            />
-                            <Legend />
-                        </PieChart>
-                    </ResponsiveContainer>
+                    <div style={{ flex: 1, minHeight: 0 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={enrichedHoldingsWithWeight}
+                                    cx="50%"
+                                    cy="45%"
+                                    innerRadius={50}
+                                    outerRadius={75}
+                                    paddingAngle={5}
+                                    dataKey="marketValue"
+                                    nameKey="ticker"
+                                >
+                                    {enrichedHoldingsWithWeight.map((_, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <RechartsTooltip 
+                                    formatter={(value: any) => formatCurrency(Number(value))}
+                                    contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '4px' }}
+                                    itemStyle={{ color: 'var(--text-primary)' }}
+                                />
+                                <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             )}
 
@@ -262,10 +279,10 @@ export const Portfolio: React.FC = () => {
                                     <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{h.quantity}</td>
                                     <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{formatCurrency(h.average_cost)}</td>
                                     <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{h.currentPrice ? formatCurrency(h.currentPrice) : 'Loading...'}</td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{h.currentPrice ? formatCurrency(h.marketValue) : '-'}</td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{h.currentPrice ? formatPct(h.weight) : '-'}</td>
-                                    <td style={{ padding: '1rem 1.5rem', color: h.unrealizedPL >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                        {h.currentPrice ? (
+                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{h.currentPrice !== undefined ? formatCurrency(h.marketValue!) : '-'}</td>
+                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{h.currentPrice !== undefined ? formatPct(h.weight) : '-'}</td>
+                                    <td style={{ padding: '1rem 1.5rem', color: h.unrealizedPL !== undefined && h.unrealizedPL >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                        {h.currentPrice !== undefined && h.unrealizedPL !== undefined && h.unrealizedPLPct !== undefined ? (
                                             <>
                                                 {h.unrealizedPL > 0 ? '+' : ''}{formatCurrency(h.unrealizedPL)} <br/>
                                                 <span style={{ fontSize: '0.75rem' }}>({h.unrealizedPL > 0 ? '+' : ''}{formatPct(h.unrealizedPLPct)})</span>

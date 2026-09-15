@@ -15,10 +15,11 @@ import './index.css';
 function App() {
   const location = useLocation();
   const path = location.pathname;
-  let currentTab = 'dashboard';
-  if (path.startsWith('/research')) currentTab = 'new';
-  else if (path.startsWith('/history')) currentTab = 'history';
-  else if (path.startsWith('/watchlist')) currentTab = 'watchlist';
+  let currentTab = '';
+  if (path === '/dashboard') currentTab = 'dashboard';
+  else if (path === '/research') currentTab = 'new';
+  else if (path === '/history') currentTab = 'history';
+  else if (path === '/watchlist') currentTab = 'watchlist';
 
   // If the user is on /auth but they are already logged in, they shouldn't see Sidebar.
   // Actually, we can just render AuthPage standalone when on /auth.
