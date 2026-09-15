@@ -11,19 +11,22 @@ export const Markets: React.FC = () => {
     const tickerQuery = searchParams.get('ticker');
 
     const [movers, setMovers] = useState<MarketMoversResponse | null>(null);
-    const [quote, setQuote] = useState<any | null>(null);
+    const [quote, setQuote] = useState<any | null>(null); // quote uses a complex object, but we'll leave it as any or refine if needed. Let's refine movers first.
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [moversError, setMoversError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchMovers = async () => {
-            if (tickerQuery) return; // Don't fetch movers if searching for a specific quote
+            if (tickerQuery) return; 
             try {
                 setLoading(true);
+                setMoversError(null);
                 const data = await ApiClient.getMarketMovers();
                 setMovers(data);
             } catch (err: any) {
                 console.error("Failed to fetch movers", err);
+                setMoversError(err.message || 'Failed to load market movers');
             } finally {
                 setLoading(false);
             }
@@ -183,7 +186,14 @@ export const Markets: React.FC = () => {
                 </div>
             )}
 
-            {!loading && !tickerQuery && movers && (
+            {!loading && !tickerQuery && moversError && (
+                <div className="panel" style={{ textAlign: 'center', padding: '3rem' }}>
+                    <div style={{ color: 'var(--danger)', marginBottom: '1rem' }}>{moversError}</div>
+                    <button className="trade-btn" onClick={() => navigate(0)}>Retry</button>
+                </div>
+            )}
+
+            {!loading && !tickerQuery && movers && !moversError && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                     <div className="panel">
                         <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -198,8 +208,8 @@ export const Markets: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {movers.gainers.map((m: any) => (
-                                    <tr key={m.ticker} style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/markets?ticker=${m.ticker}`)}>
+                                {movers.gainers.map((m) => (
+                                    <tr key={m.ticker} style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/markets?ticker=${m.ticker}`)} className="table-row-hover">
                                         <td style={{ padding: '0.75rem', cursor: 'pointer' }}><span style={{ color: 'var(--accent-light)', fontWeight: 500 }}>{m.ticker}</span><br/><span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.company}</span></td>
                                         <td style={{ padding: '0.75rem', color: 'var(--text-primary)' }}>${m.price?.toFixed(2)}</td>
                                         <td style={{ padding: '0.75rem', color: 'var(--success)' }}>+{m.day_change_pct?.toFixed(2)}%</td>
@@ -221,8 +231,8 @@ export const Markets: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {movers.losers.map((m: any) => (
-                                    <tr key={m.ticker} style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/markets?ticker=${m.ticker}`)}>
+                                {movers.losers.map((m) => (
+                                    <tr key={m.ticker} style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/markets?ticker=${m.ticker}`)} className="table-row-hover">
                                         <td style={{ padding: '0.75rem', cursor: 'pointer' }}><span style={{ color: 'var(--accent-light)', fontWeight: 500 }}>{m.ticker}</span><br/><span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.company}</span></td>
                                         <td style={{ padding: '0.75rem', color: 'var(--text-primary)' }}>${m.price?.toFixed(2)}</td>
                                         <td style={{ padding: '0.75rem', color: 'var(--danger)' }}>{m.day_change_pct?.toFixed(2)}%</td>
@@ -233,6 +243,11 @@ export const Markets: React.FC = () => {
                     </div>
                 </div>
             )}
+            <style>{`
+                .table-row-hover:hover {
+                    background-color: rgba(255, 255, 255, 0.02);
+                }
+            `}</style>
         </div>
     );
 }

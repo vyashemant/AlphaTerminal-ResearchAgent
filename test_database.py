@@ -3,21 +3,22 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
 import json
 import os
+from api.config import settings
 import db.database as db
 from db.database import PersistenceError, SQLiteBackend, SupabaseBackend, MockBackend
 
 @pytest.fixture(autouse=True)
 def cleanup_env():
     # Make sure we don't leak env vars across tests
-    original_backend = os.environ.get("DATABASE_BACKEND")
+    original_backend = settings.DATABASE_BACKEND
     yield
     if original_backend is None:
-        os.environ.pop("DATABASE_BACKEND", None)
+        settings.DATABASE_BACKEND = "sqlite"
     else:
-        os.environ["DATABASE_BACKEND"] = original_backend
+        settings.DATABASE_BACKEND = original_backend
 
 def test_backend_selection_sqlite():
-    os.environ["DATABASE_BACKEND"] = "sqlite"
+    settings.DATABASE_BACKEND = "sqlite"
     # force reload instance
     db._db_instance = None
     backend = db.get_db()
@@ -62,24 +63,24 @@ def test_sqlite_schema_migration(tmp_path):
         assert "result_json" in columns
 
 def test_backend_selection_mock():
-    os.environ["DATABASE_BACKEND"] = "mock"
+    settings.DATABASE_BACKEND = "mock"
     db._db_instance = None
     backend = db.get_db()
     assert isinstance(backend, MockBackend)
 
 def test_backend_selection_supabase_missing_creds():
-    os.environ["DATABASE_BACKEND"] = "supabase"
-    os.environ["SUPABASE_URL"] = ""
-    os.environ["SUPABASE_SECRET_KEY"] = ""
+    settings.DATABASE_BACKEND = "supabase"
+    settings.SUPABASE_URL = ""
+    settings.SUPABASE_SECRET_KEY = ""
     db._db_instance = None
     with pytest.raises(RuntimeError, match="Missing or invalid SUPABASE_URL"):
         db.get_db()
 
 @patch("db.database.SupabaseBackend._initialize_client")
 def test_backend_selection_supabase_valid(mock_init):
-    os.environ["DATABASE_BACKEND"] = "supabase"
-    os.environ["SUPABASE_URL"] = "https://real-url.supabase.co"
-    os.environ["SUPABASE_SECRET_KEY"] = "real-key"
+    settings.DATABASE_BACKEND = "supabase"
+    settings.SUPABASE_URL = "https://real-url.supabase.co"
+    settings.SUPABASE_SECRET_KEY = "real-key"
     db._db_instance = None
     backend = db.get_db()
     assert isinstance(backend, SupabaseBackend)
@@ -166,9 +167,9 @@ def test_failed_result_mock(mock_db):
 # --- MOCKED SUPABASE TESTS ---
 @patch("db.database.SupabaseBackend._initialize_client")
 def test_supabase_create_job(mock_init):
-    os.environ["DATABASE_BACKEND"] = "supabase"
-    os.environ["SUPABASE_URL"] = "https://real-url.supabase.co"
-    os.environ["SUPABASE_SECRET_KEY"] = "real-key"
+    settings.DATABASE_BACKEND = "supabase"
+    settings.SUPABASE_URL = "https://real-url.supabase.co"
+    settings.SUPABASE_SECRET_KEY = "real-key"
     db._db_instance = None
     backend = db.get_db()
     backend._client = MagicMock()
@@ -190,9 +191,9 @@ def test_supabase_create_job(mock_init):
 
 @patch("db.database.SupabaseBackend._initialize_client")
 def test_supabase_update_job_valid_json(mock_init):
-    os.environ["DATABASE_BACKEND"] = "supabase"
-    os.environ["SUPABASE_URL"] = "https://real-url.supabase.co"
-    os.environ["SUPABASE_SECRET_KEY"] = "real-key"
+    settings.DATABASE_BACKEND = "supabase"
+    settings.SUPABASE_URL = "https://real-url.supabase.co"
+    settings.SUPABASE_SECRET_KEY = "real-key"
     db._db_instance = None
     backend = db.get_db()
     backend._client = MagicMock()
@@ -209,9 +210,9 @@ def test_supabase_update_job_valid_json(mock_init):
 
 @patch("db.database.SupabaseBackend._initialize_client")
 def test_supabase_update_job_malformed_json(mock_init):
-    os.environ["DATABASE_BACKEND"] = "supabase"
-    os.environ["SUPABASE_URL"] = "https://real-url.supabase.co"
-    os.environ["SUPABASE_SECRET_KEY"] = "real-key"
+    settings.DATABASE_BACKEND = "supabase"
+    settings.SUPABASE_URL = "https://real-url.supabase.co"
+    settings.SUPABASE_SECRET_KEY = "real-key"
     db._db_instance = None
     backend = db.get_db()
     backend._client = MagicMock()
@@ -221,9 +222,9 @@ def test_supabase_update_job_malformed_json(mock_init):
 
 @patch("db.database.SupabaseBackend._initialize_client")
 def test_supabase_create_job_failure(mock_init):
-    os.environ["DATABASE_BACKEND"] = "supabase"
-    os.environ["SUPABASE_URL"] = "https://real-url.supabase.co"
-    os.environ["SUPABASE_SECRET_KEY"] = "real-key"
+    settings.DATABASE_BACKEND = "supabase"
+    settings.SUPABASE_URL = "https://real-url.supabase.co"
+    settings.SUPABASE_SECRET_KEY = "real-key"
     db._db_instance = None
     backend = db.get_db()
     backend._client = MagicMock()
@@ -237,9 +238,9 @@ def test_supabase_create_job_failure(mock_init):
 
 @patch("db.database.SupabaseBackend._initialize_client")
 def test_supabase_jsonb_roundtrip(mock_init):
-    os.environ["DATABASE_BACKEND"] = "supabase"
-    os.environ["SUPABASE_URL"] = "https://real-url.supabase.co"
-    os.environ["SUPABASE_SECRET_KEY"] = "real-key"
+    settings.DATABASE_BACKEND = "supabase"
+    settings.SUPABASE_URL = "https://real-url.supabase.co"
+    settings.SUPABASE_SECRET_KEY = "real-key"
     db._db_instance = None
     backend = db.get_db()
     backend._client = MagicMock()

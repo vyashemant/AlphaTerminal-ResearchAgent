@@ -66,7 +66,8 @@ class NewsDataTool(BaseTool):
         limit: int = 3
     ) -> str:
 
-        api_token = os.getenv("MARKETAUX_API_KEY")
+        from api.config import settings
+        api_token = settings.MARKETAUX_API_KEY
 
         if not api_token:
             raise ValueError(

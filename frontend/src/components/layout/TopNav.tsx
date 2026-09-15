@@ -27,13 +27,16 @@ export function TopNav() {
 
     return (
         <header className="top-bar" style={{ position: 'relative' }}>
-            <form onSubmit={handleSearch} className="search-container" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', background: 'var(--bg-primary)', padding: '0.375rem 0.75rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                <Search size={16} />
+            <form onSubmit={handleSearch} role="search" className="search-container" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', background: 'var(--bg-primary)', padding: '0.375rem 0.75rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                <button type="submit" aria-label="Search" style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', display: 'flex', outline: 'none' }}>
+                    <Search size={16} />
+                </button>
                 <input 
-                    type="text" 
+                    type="search" 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search tickers, companies..." 
+                    aria-label="Search query"
                     style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.875rem', width: '200px' }}
                 />
             </form>
@@ -42,7 +45,7 @@ export function TopNav() {
                 <Link to="/markets" className={`top-nav-item ${location.pathname.startsWith('/markets') ? 'active' : ''}`} style={{textDecoration: 'none'}}>Markets</Link>
                 <Link to="/screeners" className={`top-nav-item ${location.pathname.startsWith('/screeners') ? 'active' : ''}`} style={{textDecoration: 'none'}}>Screeners</Link>
                 <Link to="/portfolio" className={`top-nav-item ${location.pathname.startsWith('/portfolio') ? 'active' : ''}`} style={{textDecoration: 'none'}}>Portfolio</Link>
-                <Link to="/dashboard" className={`top-nav-item ${(location.pathname === '/dashboard' || location.pathname === '/') ? 'active' : ''}`} style={{textDecoration: 'none'}}>Analysis</Link>
+                <Link to="/dashboard" className={`top-nav-item ${(location.pathname === '/dashboard' || location.pathname === '/' || location.pathname.startsWith('/research') || location.pathname.startsWith('/history') || location.pathname.startsWith('/watchlist')) ? 'active' : ''}`} style={{textDecoration: 'none'}}>Analysis</Link>
             </nav>
 
             <div className="top-actions">

@@ -99,7 +99,7 @@ async def run_screener(
     filtered = []
     for item in data:
         price = item.get("price")
-        mcap = item.get("marketCap")
+        mcap = item.get("market_cap")
         pe = item.get("pe")
         div_yield = item.get("dividend_yield")
 

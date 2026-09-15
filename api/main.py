@@ -1,26 +1,28 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, status, Query, Depends
+from fastapi import FastAPI, HTTPException, BackgroundTasks, status, Query, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from typing import Optional, List, Dict
-import logging
 from contextlib import asynccontextmanager
 import uuid
 from datetime import datetime, timezone
 
+from api.config import settings, logger
 from agents.investment_research_report import InvestmentResearchReport
 from services.research_service import submit_research_job, get_job_history, get_research_job
 from api.auth import get_current_user
 
-# Setup minimal logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    import db.database as db
-    db.init_db()
     import asyncio
     from services.research_service import find_stale_running_jobs
+    try:
+        import db.database as db
+        db.init_db()
+        logger.info("Database initialized successfully.")
+    except Exception as e:
+        logger.error(f"Failed to initialize database during startup: {e}")
+
     # Run recovery without blocking startup
     asyncio.create_task(asyncio.to_thread(find_stale_running_jobs))
     yield
@@ -32,14 +34,22 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Basic CORS middleware for development
+# CORS middleware from configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"}
+    )
 
 class ResearchRequest(BaseModel):
     company: str
@@ -113,9 +123,41 @@ class PortfolioItemRequest(BaseModel):
             raise ValueError("Ticker cannot be empty.")
         return v.strip().upper()
 
+    @field_validator("quantity")
+    @classmethod
+    def validate_quantity(cls, v: float) -> float:
+        import math
+        if math.isnan(v) or math.isinf(v) or v <= 0:
+            raise ValueError("Quantity must be a finite number greater than 0.")
+        return v
+
+    @field_validator("average_cost")
+    @classmethod
+    def validate_average_cost(cls, v: float) -> float:
+        import math
+        if math.isnan(v) or math.isinf(v) or v < 0:
+            raise ValueError("Average cost must be a finite non-negative number.")
+        return v
+
 class PortfolioItemUpdate(BaseModel):
     quantity: float
     average_cost: float
+
+    @field_validator("quantity")
+    @classmethod
+    def validate_quantity(cls, v: float) -> float:
+        import math
+        if math.isnan(v) or math.isinf(v) or v <= 0:
+            raise ValueError("Quantity must be a finite number greater than 0.")
+        return v
+
+    @field_validator("average_cost")
+    @classmethod
+    def validate_average_cost(cls, v: float) -> float:
+        import math
+        if math.isnan(v) or math.isinf(v) or v < 0:
+            raise ValueError("Average cost must be a finite non-negative number.")
+        return v
 
 class PortfolioItemResponse(BaseModel):
     id: str
@@ -129,9 +171,20 @@ class PortfolioItemResponse(BaseModel):
 class PortfolioResponse(BaseModel):
     portfolio: List[PortfolioItemResponse]
 
-@app.get("/health")
+@app.get("/health", description="Liveness probe")
 def health():
     return {"status": "ok"}
+
+@app.get("/ready", description="Readiness probe")
+def ready():
+    try:
+        import db.database as db
+        # A simple connectivity check that doesn't block heavily
+        db.list_watchlist(user_id="system-ready-check")
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"Readiness check failed: {e}")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Service unavailable")
 
 @app.post("/api/v1/research", status_code=status.HTTP_202_ACCEPTED, response_model=ResearchJobResponse)
 def research(request: ResearchRequest, background_tasks: BackgroundTasks, user: Dict[str, str] = Depends(get_current_user)):
@@ -350,6 +403,20 @@ async def screener_route(
     min_yield: Optional[float] = None,
     max_yield: Optional[float] = None
 ):
+    import math
+    def validate_bounds(min_val, max_val, name):
+        if min_val is not None and (math.isnan(min_val) or math.isinf(min_val)):
+            raise HTTPException(status_code=422, detail=f"Invalid {name} min value")
+        if max_val is not None and (math.isnan(max_val) or math.isinf(max_val)):
+            raise HTTPException(status_code=422, detail=f"Invalid {name} max value")
+        if min_val is not None and max_val is not None and min_val > max_val:
+            raise HTTPException(status_code=422, detail=f"{name} min cannot be greater than max")
+
+    validate_bounds(min_price, max_price, "price")
+    validate_bounds(min_market_cap, max_market_cap, "market_cap")
+    validate_bounds(min_pe, max_pe, "pe")
+    validate_bounds(min_yield, max_yield, "yield")
+
     try:
         return await run_screener(
             min_price=min_price, max_price=max_price,
