@@ -27,21 +27,23 @@ def test_readiness_check():
 def test_readiness_check_failure(monkeypatch):
     """Verify readiness returns 503 when DB fails."""
     import db.database as db
-    from db.database import PersistenceError
 
-    def mock_get_db(*args, **kwargs):
-        raise PersistenceError("Simulated DB failure")
+    def mock_list_watchlist(*args, **kwargs):
+        raise Exception("Simulated DB failure")
     
-    monkeypatch.setattr(db, "get_db", mock_get_db)
+    monkeypatch.setattr(db, "list_watchlist", mock_list_watchlist)
 
     response = client.get("/ready")
     assert response.status_code == 503
-    assert response.json() == {"status": "unavailable", "detail": "Simulated DB failure"}
+    assert response.json() == {"detail": "Service unavailable"}
 
 def test_global_exception_handler(monkeypatch):
     """Verify global exception handler catches unhandled errors and returns 500."""
-    from api.main import api_router
     from fastapi import APIRouter
+    from fastapi.testclient import TestClient
+    from api.main import app
+
+    safe_client = TestClient(app, raise_server_exceptions=False)
 
     # Add a temporary route that raises an exception
     router = APIRouter()
@@ -51,7 +53,7 @@ def test_global_exception_handler(monkeypatch):
     
     app.include_router(router)
 
-    response = client.get("/trigger_error")
+    response = safe_client.get("/trigger_error")
     assert response.status_code == 500
     assert response.json() == {"detail": "Internal server error"}
 

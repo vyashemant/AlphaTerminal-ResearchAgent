@@ -1,25 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-    /* Brand Colors */
-    --accent: #4338ca; /* Indigo */
-    --accent-light: #6366f1;
-    --accent-bg: rgba(99, 102, 241, 0.1);
+    /* Brand Colors (Terracotta/Warm Orange) */
+    --accent: #D9774F;
+    --accent-light: #E4865F;
+    --accent-bg: rgba(217, 119, 79, 0.1);
 
-    /* Backgrounds - Navy/Charcoal Terminal */
-    --bg-primary: #0f111a;
-    --bg-secondary: #161824;
-    --bg-panel: #1e2130;
-    --bg-hover: #262a3d;
+    /* Backgrounds - Warm Charcoal */
+    --bg-primary: #201D1A;
+    --bg-secondary: #292521;
+    --bg-panel: #302B26;
+    --bg-hover: #38312B;
     
     /* Borders */
-    --border: #2e3248;
-    --border-light: #3f4561;
+    --border: #484039;
+    --border-light: #595048;
 
     /* Text */
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-primary: #F5EFE7;
+    --text-secondary: #C7BEB4;
+    --text-muted: #948A80;
+
+    /* Surfaces */
+    --surface: var(--bg-panel);
+    --surface-elevated: #38312B;
 
     /* Semantic */
     --success: #10b981; /* Green */
@@ -32,6 +36,40 @@
     /* Typography */
     --sans: 'Inter', system-ui, -apple-system, sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+[data-theme='light'] {
+    /* Backgrounds - Warm Beige */
+    --bg-primary: #F7F3ED;
+    --bg-secondary: #FFFCF7;
+    --bg-panel: #FFFCF7;
+    --bg-hover: #f0ebe1;
+    
+    /* Surfaces */
+    --surface: #FFFCF7;
+    --surface-elevated: #FFFDF9;
+
+    /* Brand / Accent - Terracotta */
+    --accent: #C65D32;
+    --accent-light: #A94B27;
+    --accent-bg: rgba(198, 93, 50, 0.1);
+
+    /* Borders */
+    --border: #E5DED4;
+    --border-light: #d4cbbd;
+
+    /* Text */
+    --text-primary: #2B2926;
+    --text-secondary: #706B65;
+    --text-muted: #918A82;
+
+    /* Semantic */
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --success-bg: rgba(5, 150, 105, 0.1);
+    --warning-bg: rgba(217, 119, 6, 0.1);
+    --danger-bg: rgba(220, 38, 38, 0.1);
 }
 
 body {

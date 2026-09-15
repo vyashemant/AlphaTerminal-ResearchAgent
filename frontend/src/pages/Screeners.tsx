@@ -137,16 +137,16 @@ export const Screeners: React.FC = () => {
                         {loading && <RefreshCw className="spinner" size={16} style={{ color: 'var(--text-secondary)', animation: 'spin 1s linear infinite' }} />}
                     </div>
 
-                    <div style={{ overflowX: 'auto' }}>
+                    <div style={{ overflowX: 'auto', maxHeight: '600px', overflowY: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                             <thead>
-                                <tr style={{ background: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-secondary)' }}>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Ticker</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Price</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Change</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Market Cap</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>P/E</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Div Yield</th>
+                                <tr style={{ textAlign: 'left', color: 'var(--text-secondary)' }}>
+                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Ticker</th>
+                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Price</th>
+                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Change</th>
+                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Market Cap</th>
+                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>P/E</th>
+                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Div Yield</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -193,7 +193,7 @@ export const Screeners: React.FC = () => {
                     border-color: var(--accent);
                 }
                 .table-row-hover:hover {
-                    background-color: rgba(255, 255, 255, 0.02);
+                    background-color: var(--bg-hover);
                 }
             `}</style>
         </div>

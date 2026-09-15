@@ -10,3 +10,4 @@ httpx
 pytest
 supabase>=2.0.0
 pydantic-settings
+cachetools
