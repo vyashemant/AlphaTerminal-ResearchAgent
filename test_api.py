@@ -1,5 +1,6 @@
 import pytest
 import os
+from api.config import settings
 import tempfile
 import sqlite3
 from unittest.mock import patch
@@ -16,7 +17,7 @@ from api.main import app
 from api.auth import get_current_user
 
 # Set test mock mode
-os.environ["DATABASE_BACKEND"] = "mock"
+settings.DATABASE_BACKEND = "mock"
 
 client = TestClient(app)
 # Add valid auth token to the default client headers for existing tests
@@ -232,6 +233,11 @@ def test_history_ordering():
     assert history[0]["job_id"] == "job-2"
     assert history[1]["job_id"] == "job-3"
     assert history[2]["job_id"] == "job-1"
+
+@patch("services.research_service.submit_research_job")
+def test_submit_research_job_mock(mock_submit):
+    mock_submit.return_value = ("job-123", "2023-01-01T00:00:00Z")
+    mock_submit.side_effect = Exception("Pipeline failed")
 
 def test_api_database_failure_history():
     with patch("db.database.list_jobs", side_effect=Exception("DB connection lost")):

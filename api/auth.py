@@ -1,8 +1,9 @@
 import os
 import logging
 from typing import Dict
-from fastapi import Security, HTTPException, status
+from fastapi import Depends, Security, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from api.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     token = credentials.credentials
     
     # Check if we are running in testing/mock mode
-    if os.environ.get("DATABASE_BACKEND", "").lower() == "mock":
+    if settings.DATABASE_BACKEND.lower() == "mock":
         # For offline testing, accept only the explicit dummy token
         if token == "test-token-valid":
             return {"id": "test-user-id"}
@@ -40,8 +41,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     # Production/Supabase token validation
     try:
         from supabase import create_client
-        url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SECRET_KEY")
+        url = settings.SUPABASE_URL
+        key = settings.SUPABASE_SECRET_KEY
         
         if not url or not key:
             raise RuntimeError("Supabase credentials missing.")

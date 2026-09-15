@@ -16,8 +16,9 @@ from agents.investment_strategist import (
 # ============================================================
 
 load_dotenv()
+from api.config import settings
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = settings.GEMINI_API_KEY
 
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not found. Please add it to your .env file.")

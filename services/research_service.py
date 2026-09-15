@@ -3,15 +3,15 @@ import logging
 from datetime import datetime, timezone
 import json
 
-import os
 from typing import Tuple, Dict, Any, Optional
 import db.database as db
 from services.research_pipeline import run_investment_research
 from agents.investment_research_report import InvestmentResearchReport
+from api.config import settings
 
 logger = logging.getLogger(__name__)
 
-RESEARCH_JOB_TIMEOUT_SECONDS = int(os.environ.get("RESEARCH_JOB_TIMEOUT_SECONDS", "3600"))
+RESEARCH_JOB_TIMEOUT_SECONDS = settings.RESEARCH_JOB_TIMEOUT_SECONDS
 
 def submit_research_job(company: str, ticker: str, background_tasks, user_id: str = None) -> Tuple[str, str]:
     job_id = str(uuid.uuid4())

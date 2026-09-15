@@ -322,8 +322,9 @@ class SupabaseBackend(DatabaseBackend):
         self._initialize_client()
 
     def _initialize_client(self):
-        url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SECRET_KEY")
+        from api.config import settings
+        url = settings.SUPABASE_URL
+        key = settings.SUPABASE_SECRET_KEY
         if not url or not key or "your_supabase_project_url" in url or "your_supabase_secret_key" in key:
             raise RuntimeError("Missing or invalid SUPABASE_URL or SUPABASE_SECRET_KEY for Supabase backend. Please configure credentials.")
         
@@ -638,7 +639,8 @@ def get_db() -> DatabaseBackend:
     if _db_instance is not None:
         return _db_instance
 
-    backend_type = os.environ.get("DATABASE_BACKEND", "sqlite").lower()
+    from api.config import settings
+    backend_type = settings.DATABASE_BACKEND.lower()
     
     if backend_type == "mock":
         _db_instance = MockBackend()
@@ -711,10 +713,12 @@ def set_testing_mode(enabled: bool):
     """
     global _db_instance
     if enabled:
-        os.environ["DATABASE_BACKEND"] = "mock"
+        from api.config import settings
+        settings.DATABASE_BACKEND = "mock"
         _db_instance = MockBackend()
     else:
-        os.environ.pop("DATABASE_BACKEND", None)
+        from api.config import settings
+        settings.DATABASE_BACKEND = "sqlite"
         _db_instance = None
 
 def clear_mock_db():

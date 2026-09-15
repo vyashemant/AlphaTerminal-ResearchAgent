@@ -3,9 +3,10 @@ from fastapi.testclient import TestClient
 import uuid
 from typing import Generator
 import os
+from api.config import settings
 
 # Ensure testing mode before importing app
-os.environ["DATABASE_BACKEND"] = "mock"
+settings.DATABASE_BACKEND = "mock"
 
 from api.main import app
 import db.database as db

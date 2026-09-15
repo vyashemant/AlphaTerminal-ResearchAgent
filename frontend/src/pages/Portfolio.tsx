@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ApiClient } from '../api/client';
-import { RefreshCw, Plus, Edit2, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
+import { RefreshCw, Plus, Edit2, Trash2, TrendingUp, TrendingDown, PieChart as PieChartIcon } from 'lucide-react';
 import type { PortfolioItem } from '../types/api';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 
 export const Portfolio: React.FC = () => {
     const [holdings, setHoldings] = useState<PortfolioItem[]>([]);
@@ -70,33 +71,51 @@ export const Portfolio: React.FC = () => {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+        
+        const q = parseFloat(formQuantity);
+        const c = parseFloat(formAvgCost);
+
+        if (isNaN(q) || !isFinite(q) || q <= 0) {
+            setError('Quantity must be a number greater than 0.');
+            setShowModal(false);
+            return;
+        }
+        if (isNaN(c) || !isFinite(c) || c < 0) {
+            setError('Average cost must be a non-negative number.');
+            setShowModal(false);
+            return;
+        }
+
         try {
             if (modalMode === 'add') {
                 await ApiClient.addPortfolioItem({
                     ticker: formTicker,
-                    quantity: parseFloat(formQuantity),
-                    average_cost: parseFloat(formAvgCost)
+                    quantity: q,
+                    average_cost: c
                 });
             } else if (modalMode === 'edit' && selectedItem) {
                 await ApiClient.updatePortfolioItem(selectedItem.id, {
-                    quantity: parseFloat(formQuantity),
-                    average_cost: parseFloat(formAvgCost)
+                    quantity: q,
+                    average_cost: c
                 });
             }
             setShowModal(false);
             fetchPortfolio();
         } catch (err: any) {
-            alert(err.message || 'Failed to save holding');
+            setError(err.message || 'Failed to save holding');
+            setShowModal(false);
         }
     };
 
     const handleDelete = async (id: string) => {
         if (!window.confirm('Are you sure you want to delete this holding?')) return;
+        setError(null);
         try {
             await ApiClient.deletePortfolioItem(id);
             fetchPortfolio();
         } catch (err: any) {
-            alert(err.message || 'Failed to delete holding');
+            setError(err.message || 'Failed to delete holding');
         }
     };
 
@@ -123,8 +142,15 @@ export const Portfolio: React.FC = () => {
     const totalInvested = enrichedHoldings.reduce((sum, item) => sum + item.invested, 0);
     const totalValue = enrichedHoldings.reduce((sum, item) => sum + item.marketValue, 0);
 
+    const enrichedHoldingsWithWeight = enrichedHoldings.map(item => ({
+        ...item,
+        weight: totalValue > 0 ? (item.marketValue / totalValue) * 100 : 0
+    }));
+
     const totalUnrealizedPL = totalValue - totalInvested;
     const totalUnrealizedPLPct = totalInvested > 0 ? (totalUnrealizedPL / totalInvested) * 100 : 0;
+    
+    const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4'];
 
     return (
         <div className="research-container" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
@@ -162,6 +188,45 @@ export const Portfolio: React.FC = () => {
                 </div>
             </div>
 
+            {loading && enrichedHoldingsWithWeight.length === 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                    <RefreshCw className="spinner" size={24} style={{ animation: 'spin 1s linear infinite', marginBottom: '1rem' }} />
+                    <p>Loading portfolio data...</p>
+                </div>
+            )}
+
+            {!loading && enrichedHoldingsWithWeight.length > 0 && (
+                <div className="panel" style={{ marginBottom: '2rem', height: '300px' }}>
+                    <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <PieChartIcon size={16} /> Allocation
+                    </h3>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={enrichedHoldingsWithWeight}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={80}
+                                paddingAngle={5}
+                                dataKey="marketValue"
+                                nameKey="ticker"
+                            >
+                                {enrichedHoldingsWithWeight.map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <RechartsTooltip 
+                                formatter={(value: any) => formatCurrency(Number(value))}
+                                contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '4px' }}
+                                itemStyle={{ color: 'var(--text-primary)' }}
+                            />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+            )}
+
             <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
                 <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>Holdings</h3>
@@ -176,19 +241,20 @@ export const Portfolio: React.FC = () => {
                                 <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Avg Cost</th>
                                 <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Price</th>
                                 <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Market Value</th>
+                                <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Weight</th>
                                 <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Total P/L</th>
                                 <th style={{ padding: '1rem 1.5rem', fontWeight: 500, textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {enrichedHoldings.length === 0 && !loading && (
+                            {enrichedHoldingsWithWeight.length === 0 && !loading && (
                                 <tr>
-                                    <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         No holdings in your paper portfolio.
                                     </td>
                                 </tr>
                             )}
-                            {enrichedHoldings.map(h => (
+                            {enrichedHoldingsWithWeight.map(h => (
                                 <tr key={h.id} style={{ borderBottom: '1px solid var(--border)' }}>
                                     <td style={{ padding: '1rem 1.5rem' }}>
                                         <div style={{ color: 'var(--accent-light)', fontWeight: 500 }}>{h.ticker}</div>
@@ -197,6 +263,7 @@ export const Portfolio: React.FC = () => {
                                     <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{formatCurrency(h.average_cost)}</td>
                                     <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{h.currentPrice ? formatCurrency(h.currentPrice) : 'Loading...'}</td>
                                     <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{h.currentPrice ? formatCurrency(h.marketValue) : '-'}</td>
+                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{h.currentPrice ? formatPct(h.weight) : '-'}</td>
                                     <td style={{ padding: '1rem 1.5rem', color: h.unrealizedPL >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                                         {h.currentPrice ? (
                                             <>
