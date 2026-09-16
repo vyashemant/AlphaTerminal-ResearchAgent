@@ -7,10 +7,11 @@ import db.database as db
 from services.research_service import find_stale_running_jobs, submit_research_job, background_research_task
 
 @pytest.fixture(autouse=True)
-def setup_mock_db():
+def setup_mock_db(monkeypatch):
     db.set_testing_mode(True)
     db.init_db()
     db.clear_mock_db()
+    monkeypatch.setattr("services.research_service.RESEARCH_JOB_TIMEOUT_SECONDS", 3600)
     yield
     db.clear_mock_db()
     db.set_testing_mode(False)

@@ -78,3 +78,41 @@ def test_config_validation():
     # missing supabase credentials
     with pytest.raises(ValueError, match="SUPABASE_URL and SUPABASE_SECRET_KEY are required"):
         Settings(DATABASE_BACKEND="supabase", SUPABASE_URL="", SUPABASE_SECRET_KEY="")
+
+def test_cors_origins_parsing():
+    """Verify CORS origins can be parsed from json strings or comma-separated lists."""
+    from api.config import Settings
+    
+    # default
+    s1 = Settings(DATABASE_BACKEND="mock")
+    assert "http://localhost:5173" in s1.CORS_ORIGINS
+
+    # json list string
+    s2 = Settings(DATABASE_BACKEND="mock", CORS_ORIGINS='["https://alpha.com", "https://beta.com"]')
+    assert s2.CORS_ORIGINS == ["https://alpha.com", "https://beta.com"]
+
+    # comma separated string
+    s3 = Settings(DATABASE_BACKEND="mock", CORS_ORIGINS="https://gamma.com,https://delta.com")
+    assert s3.CORS_ORIGINS == ["https://gamma.com", "https://delta.com"]
+
+def test_cors_origins_wildcard_rejection():
+    """Verify wildcard '*' is rejected in CORS_ORIGINS for security."""
+    from api.config import Settings
+    
+    with pytest.raises(ValueError, match="Wildcard '\\*' is not permitted"):
+        Settings(DATABASE_BACKEND="mock", CORS_ORIGINS="*")
+
+    with pytest.raises(ValueError, match="Wildcard '\\*' is not permitted"):
+        Settings(DATABASE_BACKEND="mock", CORS_ORIGINS='["*"]')
+
+    with pytest.raises(ValueError, match="Wildcard '\\*' is not permitted"):
+        Settings(DATABASE_BACKEND="mock", CORS_ORIGINS=["*"])
+
+def test_settings_without_production_secrets():
+    """Verify settings can be initialized without production secrets in local/test modes."""
+    from api.config import Settings
+    s = Settings(DATABASE_BACKEND="mock", GEMINI_API_KEY=None, MARKETAUX_API_KEY=None)
+    assert s.DATABASE_BACKEND == "mock"
+    assert s.GEMINI_API_KEY is None
+    assert s.MARKETAUX_API_KEY is None
+
