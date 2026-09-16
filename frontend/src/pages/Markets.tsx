@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, TrendingUp, TrendingDown, RefreshCw, Plus } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, RefreshCw, Plus, Activity } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { MarketMoversResponse } from '../types/api';
@@ -11,21 +11,20 @@ export const Markets: React.FC = () => {
     const tickerQuery = searchParams.get('ticker');
 
     const [movers, setMovers] = useState<MarketMoversResponse | null>(null);
-    const [quote, setQuote] = useState<any | null>(null); // quote uses a complex object, but we'll leave it as any or refine if needed. Let's refine movers first.
+    const [quote, setQuote] = useState<any | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [moversError, setMoversError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchMovers = async () => {
-            if (tickerQuery) return; 
+            if (tickerQuery) return;
             try {
                 setLoading(true);
                 setMoversError(null);
                 const data = await ApiClient.getMarketMovers();
                 setMovers(data);
             } catch (err: any) {
-                console.error("Failed to fetch movers", err);
                 setMoversError(err.message || 'Failed to load market movers');
             } finally {
                 setLoading(false);
@@ -33,10 +32,7 @@ export const Markets: React.FC = () => {
         };
 
         const fetchQuote = async () => {
-            if (!tickerQuery) {
-                setQuote(null);
-                return;
-            }
+            if (!tickerQuery) { setQuote(null); return; }
             try {
                 setLoading(true);
                 setError(null);
@@ -49,27 +45,24 @@ export const Markets: React.FC = () => {
             }
         };
 
-        if (tickerQuery) {
-            fetchQuote();
-        } else {
-            fetchMovers();
-        }
+        if (tickerQuery) fetchQuote();
+        else fetchMovers();
     }, [tickerQuery]);
 
     const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         const t = formData.get('ticker') as string;
-        if (t) navigate(`/markets?ticker=${encodeURIComponent(t)}`);
+        if (t.trim()) navigate(`/markets?ticker=${encodeURIComponent(t.trim())}`);
     };
 
     const formatCurrency = (val: any) => {
-        if (val === null || val === undefined) return '-';
+        if (val === null || val === undefined) return '—';
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val));
     };
 
     const formatNumber = (val: any) => {
-        if (val === null || val === undefined) return '-';
+        if (val === null || val === undefined) return '—';
         if (val >= 1e12) return (val / 1e12).toFixed(2) + 'T';
         if (val >= 1e9) return (val / 1e9).toFixed(2) + 'B';
         if (val >= 1e6) return (val / 1e6).toFixed(2) + 'M';
@@ -77,165 +70,185 @@ export const Markets: React.FC = () => {
     };
 
     return (
-        <div className="research-container" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div className="page-content">
+            {/* Header */}
+            <div className="page-header" style={{ flexWrap: 'wrap' }}>
                 <div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>Markets</h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Overview and Stock Quotes</p>
+                    <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Activity size={20} style={{ color: 'var(--accent)' }} />
+                        {tickerQuery ? `Quote · ${tickerQuery}` : 'Markets'}
+                    </h1>
+                    <p className="page-subtitle">{tickerQuery ? 'Real-time quote data' : 'Market movers overview'}</p>
                 </div>
-                
-                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem' }}>
-                    <div className="search-container" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', background: 'var(--bg-panel)', padding: '0.5rem 1rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                        <Search size={16} />
-                        <input 
-                            type="text" 
+
+                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
+                    <div style={{ position: 'relative' }}>
+                        <Search size={13} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                        <input
+                            type="text"
                             name="ticker"
                             defaultValue={tickerQuery || ''}
-                            placeholder="Enter ticker (e.g. AAPL)" 
-                            style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', width: '200px' }}
+                            placeholder="Enter ticker (e.g. AAPL)"
+                            className="form-input"
+                            style={{ paddingLeft: '2.25rem', width: '220px', fontFamily: 'var(--mono)', fontWeight: 500, letterSpacing: '0.02em' }}
                         />
                     </div>
-                    <button type="submit" className="trade-btn">Quote</button>
+                    <button type="submit" className="btn btn-primary btn-sm">Get Quote</button>
+                    {tickerQuery && (
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/markets')}>
+                            ← Back to Markets
+                        </button>
+                    )}
                 </form>
             </div>
 
+            {/* Loading */}
             {loading && (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                    <RefreshCw className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
+                <div className="loading-state">
+                    <RefreshCw size={18} style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite' }} />
+                    Loading market data…
                 </div>
             )}
 
-            {error && (
-                <div className="badge badge-danger" style={{ padding: '1rem', marginBottom: '2rem' }}>
-                    {error}
-                </div>
-            )}
+            {/* Error */}
+            {error && <div className="error-banner">{error}</div>}
 
+            {/* Quote view */}
             {!loading && !error && tickerQuery && quote && (
                 <div className="panel">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                    {/* Quote header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: '1rem' }}>
                         <div>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>{quote.company} ({quote.ticker})</h2>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem', marginTop: '0.5rem' }}>
-                                <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                                    {quote.company}
+                                </h2>
+                                <span className="badge badge-neutral" style={{ fontSize: '0.875rem', letterSpacing: '0.04em' }}>{quote.ticker}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
+                                <span style={{ fontSize: '2.25rem', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                                     {formatCurrency(quote.market_data?.current_price)}
                                 </span>
-                                {quote.market_data?.current_price && quote.market_data?.previous_close && (
-                                    (() => {
-                                        const diff = quote.market_data.current_price - quote.market_data.previous_close;
-                                        const pct = (diff / quote.market_data.previous_close) * 100;
-                                        const isPos = diff >= 0;
-                                        return (
-                                            <span style={{ color: isPos ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                {isPos ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                                                {isPos ? '+' : ''}{diff.toFixed(2)} ({pct.toFixed(2)}%)
-                                            </span>
-                                        );
-                                    })()
-                                )}
+                                {quote.market_data?.current_price && quote.market_data?.previous_close && (() => {
+                                    const diff = quote.market_data.current_price - quote.market_data.previous_close;
+                                    const pct = (diff / quote.market_data.previous_close) * 100;
+                                    const isPos = diff >= 0;
+                                    return (
+                                        <span style={{ fontSize: '1.125rem', fontWeight: 600, color: isPos ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            {isPos ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                                            {isPos ? '+' : ''}{diff.toFixed(2)} ({pct.toFixed(2)}%)
+                                        </span>
+                                    );
+                                })()}
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button className="action-btn" onClick={() => navigate('/portfolio')} title="Add to Portfolio"><Plus size={18} /></button>
-                        </div>
+                        <button className="btn btn-outline btn-sm" onClick={() => navigate('/portfolio')} style={{ gap: '0.375rem' }}>
+                            <Plus size={13} /> Add to Portfolio
+                        </button>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-                        <div className="stat-card" style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Day Range</div>
-                            <div style={{ color: 'var(--text-primary)', fontWeight: 500, marginTop: '0.25rem' }}>
-                                {formatCurrency(quote.market_data?.day_low)} - {formatCurrency(quote.market_data?.day_high)}
+                    {/* Stats grid */}
+                    <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: '1.5rem' }}>
+                        {[
+                            { label: 'Day Range', value: `${formatCurrency(quote.market_data?.day_low)} — ${formatCurrency(quote.market_data?.day_high)}` },
+                            { label: '52W Range', value: `${formatCurrency(quote.market_data?.['52_week_low'])} — ${formatCurrency(quote.market_data?.['52_week_high'])}` },
+                            { label: 'Volume', value: formatNumber(quote.market_data?.volume) },
+                            { label: 'Market Cap', value: formatNumber(quote.market_data?.market_cap) },
+                            { label: 'Avg Volume', value: formatNumber(quote.market_data?.average_volume) },
+                            { label: 'Beta', value: quote.market_data?.beta?.toFixed(2) ?? '—' },
+                        ].map(stat => (
+                            <div key={stat.label} className="stat-card">
+                                <div className="stat-label">{stat.label}</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 600, fontFamily: 'var(--mono)', color: 'var(--text-primary)', marginTop: '0.375rem' }}>{stat.value}</div>
                             </div>
-                        </div>
-                        <div className="stat-card" style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>52W Range</div>
-                            <div style={{ color: 'var(--text-primary)', fontWeight: 500, marginTop: '0.25rem' }}>
-                                {formatCurrency(quote.market_data?.['52_week_low'])} - {formatCurrency(quote.market_data?.['52_week_high'])}
-                            </div>
-                        </div>
-                        <div className="stat-card" style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Volume</div>
-                            <div style={{ color: 'var(--text-primary)', fontWeight: 500, marginTop: '0.25rem' }}>
-                                {formatNumber(quote.market_data?.volume)}
-                            </div>
-                        </div>
-                        <div className="stat-card" style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Market Cap</div>
-                            <div style={{ color: 'var(--text-primary)', fontWeight: 500, marginTop: '0.25rem' }}>
-                                {formatNumber(quote.market_data?.market_cap)}
-                            </div>
-                        </div>
+                        ))}
                     </div>
 
+                    {/* Price chart */}
                     {quote.recent_history && quote.recent_history.length > 0 && (
-                        <div style={{ height: '300px', width: '100%', marginTop: '2rem' }}>
-                            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>1-Month History</h3>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={quote.recent_history}>
-                                    <XAxis dataKey="date" stroke="var(--text-secondary)" fontSize={12} tickFormatter={(str) => str.substring(5)} />
-                                    <YAxis domain={['auto', 'auto']} stroke="var(--text-secondary)" fontSize={12} />
-                                    <Tooltip 
-                                        contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '4px' }}
-                                        itemStyle={{ color: 'var(--accent-light)' }}
-                                    />
-                                    <Line type="monotone" dataKey="close" stroke="var(--accent)" strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ResponsiveContainer>
+                        <div>
+                            <div className="panel-title" style={{ marginBottom: '1rem' }}>1-Month Price History</div>
+                            <div style={{ height: '260px', width: '100%' }}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={quote.recent_history}>
+                                        <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={11} tickFormatter={(s: string) => s.substring(5)} />
+                                        <YAxis domain={['auto', 'auto']} stroke="var(--text-muted)" fontSize={11} tickFormatter={(v: number) => `$${v}`} />
+                                        <Tooltip
+                                            contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem' }}
+                                            itemStyle={{ color: 'var(--accent)' }}
+                                            labelStyle={{ color: 'var(--text-secondary)', fontWeight: 600 }}
+                                        />
+                                        <Line type="monotone" dataKey="close" stroke="var(--accent)" strokeWidth={2} dot={false} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
                         </div>
                     )}
                 </div>
             )}
 
+            {/* Movers error */}
             {!loading && !tickerQuery && moversError && (
-                <div className="panel" style={{ textAlign: 'center', padding: '3rem' }}>
-                    <div style={{ color: 'var(--danger)', marginBottom: '1rem' }}>{moversError}</div>
-                    <button className="trade-btn" onClick={() => navigate(0)}>Retry</button>
-                </div>
+                <div className="error-banner">{moversError}</div>
             )}
 
+            {/* Market movers */}
             {!loading && !tickerQuery && movers && !moversError && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                    <div className="panel">
-                        <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <TrendingUp size={20} /> Top Gainers
-                        </h3>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+                    {/* Gainers */}
+                    <div className="panel" style={{ padding: 0 }}>
+                        <div className="panel-header" style={{ padding: '1rem 1.25rem' }}>
+                            <div className="panel-title" style={{ color: 'var(--success)' }}>
+                                <TrendingUp size={14} /> Top Gainers
+                            </div>
+                        </div>
+                        <table className="terminal-table">
                             <thead>
-                                <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '0.75rem', textAlign: 'left' }}>
-                                    <th style={{ padding: '0.75rem' }}>Ticker</th>
-                                    <th style={{ padding: '0.75rem' }}>Price</th>
-                                    <th style={{ padding: '0.75rem' }}>Change</th>
+                                <tr>
+                                    <th>Ticker</th>
+                                    <th className="numeric">Price</th>
+                                    <th className="numeric">Change</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {movers.gainers.map((m) => (
-                                    <tr key={m.ticker} style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/markets?ticker=${m.ticker}`)} className="table-row-hover">
-                                        <td style={{ padding: '0.75rem', cursor: 'pointer' }}><span style={{ color: 'var(--accent-light)', fontWeight: 500 }}>{m.ticker}</span><br/><span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.company}</span></td>
-                                        <td style={{ padding: '0.75rem', color: 'var(--text-primary)' }}>${m.price?.toFixed(2)}</td>
-                                        <td style={{ padding: '0.75rem', color: 'var(--success)' }}>+{m.day_change_pct?.toFixed(2)}%</td>
+                                    <tr key={m.ticker} className="history-row" onClick={() => navigate(`/markets?ticker=${m.ticker}`)}>
+                                        <td>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>{m.ticker}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.company}</div>
+                                        </td>
+                                        <td className="numeric">${m.price?.toFixed(2)}</td>
+                                        <td className="numeric" style={{ color: 'var(--success)', fontWeight: 600 }}>+{m.day_change_pct?.toFixed(2)}%</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                    <div className="panel">
-                        <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <TrendingDown size={20} /> Top Losers
-                        </h3>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+
+                    {/* Losers */}
+                    <div className="panel" style={{ padding: 0 }}>
+                        <div className="panel-header" style={{ padding: '1rem 1.25rem' }}>
+                            <div className="panel-title" style={{ color: 'var(--danger)' }}>
+                                <TrendingDown size={14} /> Top Losers
+                            </div>
+                        </div>
+                        <table className="terminal-table">
                             <thead>
-                                <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '0.75rem', textAlign: 'left' }}>
-                                    <th style={{ padding: '0.75rem' }}>Ticker</th>
-                                    <th style={{ padding: '0.75rem' }}>Price</th>
-                                    <th style={{ padding: '0.75rem' }}>Change</th>
+                                <tr>
+                                    <th>Ticker</th>
+                                    <th className="numeric">Price</th>
+                                    <th className="numeric">Change</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {movers.losers.map((m) => (
-                                    <tr key={m.ticker} style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/markets?ticker=${m.ticker}`)} className="table-row-hover">
-                                        <td style={{ padding: '0.75rem', cursor: 'pointer' }}><span style={{ color: 'var(--accent-light)', fontWeight: 500 }}>{m.ticker}</span><br/><span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.company}</span></td>
-                                        <td style={{ padding: '0.75rem', color: 'var(--text-primary)' }}>${m.price?.toFixed(2)}</td>
-                                        <td style={{ padding: '0.75rem', color: 'var(--danger)' }}>{m.day_change_pct?.toFixed(2)}%</td>
+                                    <tr key={m.ticker} className="history-row" onClick={() => navigate(`/markets?ticker=${m.ticker}`)}>
+                                        <td>
+                                            <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>{m.ticker}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.company}</div>
+                                        </td>
+                                        <td className="numeric">${m.price?.toFixed(2)}</td>
+                                        <td className="numeric" style={{ color: 'var(--danger)', fontWeight: 600 }}>{m.day_change_pct?.toFixed(2)}%</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -243,11 +256,6 @@ export const Markets: React.FC = () => {
                     </div>
                 </div>
             )}
-            <style>{`
-                .table-row-hover:hover {
-                    background-color: var(--bg-hover);
-                }
-            `}</style>
         </div>
     );
-}
+};

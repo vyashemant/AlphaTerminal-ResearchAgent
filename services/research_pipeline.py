@@ -61,24 +61,21 @@ if hasattr(sys.stderr, "reconfigure"):
 
 from api.config import settings
 
-GEMINI_API_KEY = settings.GEMINI_API_KEY
-
-if not GEMINI_API_KEY:
-    raise ValueError(
-        "GEMINI_API_KEY not found. "
-        "Please add GEMINI_API_KEY to your .env file."
+def get_llm():
+    from api.config import settings
+    GEMINI_API_KEY = settings.GEMINI_API_KEY
+    
+    if not GEMINI_API_KEY:
+        raise ValueError(
+            "GEMINI_API_KEY not found. "
+            "Please add GEMINI_API_KEY to your .env file."
+        )
+    
+    return LLM(
+        model="gemini/gemini-3.5-flash",
+        api_key=GEMINI_API_KEY,
+        temperature=0.3
     )
-
-
-# ============================================================
-# 2. LLM CONFIGURATION
-# ============================================================
-
-llm = LLM(
-    model="gemini/gemini-3.5-flash",
-    api_key=GEMINI_API_KEY,
-    temperature=0.3
-)
 
 
 # ============================================================
@@ -511,7 +508,8 @@ def build_specialist_research_contexts(ticker, prepared):
 # 5. FINANCIAL RESEARCH ANALYST
 # ============================================================
 
-financial_analyst = Agent(
+def create_financial_analyst(llm):
+    return Agent(
     role="Financial Research Analyst",
 
     goal=(
@@ -584,7 +582,8 @@ financial_analyst = Agent(
 # 6. FINANCIAL ANALYSIS TASK
 # ============================================================
 
-financial_analysis_task = Task(
+def create_financial_analysis_task(financial_analyst):
+    return Task(
 
     description=(
 
@@ -696,84 +695,6 @@ financial_analysis_task = Task(
     agent=financial_analyst
 )
 
-
-# ============================================================
-# 7. MARKET & NEWS ANALYST
-# ============================================================
-
-market_news_analyst = create_market_news_analyst(llm)
-
-market_news_task = create_market_news_task(market_news_analyst)
-
-
-# ============================================================
-# 8. VALUATION ANALYST
-# ============================================================
-
-valuation_analyst = create_valuation_analyst(llm)
-
-valuation_task = create_valuation_task(valuation_analyst)
-
-
-# ============================================================
-# 9. RISK ANALYST
-# ============================================================
-
-risk_analyst = create_risk_analyst(llm)
-
-risk_analysis_task = create_risk_analysis_task(risk_analyst)
-
-
-# ============================================================
-# 10. INVESTMENT STRATEGIST
-# ============================================================
-
-investment_strategist = create_investment_strategist(llm)
-
-investment_strategy_task = create_investment_strategy_task(investment_strategist)
-
-# ============================================================
-# 11. SPECIALIST CREW CONFIGURATION
-# ============================================================
-
-specialist_team = Crew(
-    agents=[
-        financial_analyst,
-        market_news_analyst,
-        valuation_analyst,
-        risk_analyst
-    ],
-
-    tasks=[
-        financial_analysis_task,
-        market_news_task,
-        valuation_task,
-        risk_analysis_task
-    ],
-
-    process=Process.sequential,
-
-    verbose=True
-)
-
-
-# ============================================================
-# 12. INVESTMENT STRATEGY CREW CONFIGURATION
-# ============================================================
-
-strategy_team = Crew(
-    agents=[
-        investment_strategist
-    ],
-
-    tasks=[
-        investment_strategy_task
-    ],
-
-    process=Process.sequential,
-
-    verbose=True
-)
 
 def prepare_financial_research(ticker):
     """
@@ -890,6 +811,19 @@ def run_specialists_in_parallel(base_inputs, research_contexts):
     Run independent specialist agents concurrently after data retrieval.
     The Investment Strategist still runs only after all reports complete.
     """
+    llm = get_llm()
+    
+    financial_analyst = create_financial_analyst(llm)
+    financial_analysis_task = create_financial_analysis_task(financial_analyst)
+    
+    market_news_analyst = create_market_news_analyst(llm)
+    market_news_task = create_market_news_task(market_news_analyst)
+    
+    valuation_analyst = create_valuation_analyst(llm)
+    valuation_task = create_valuation_task(valuation_analyst)
+    
+    risk_analyst = create_risk_analyst(llm)
+    risk_analysis_task = create_risk_analysis_task(risk_analyst)
 
     specialists = [
         (
@@ -1038,6 +972,21 @@ def run_investment_research(company: str, ticker: str):
     print("=" * 80)
     print("STEP 5 - RUNNING INVESTMENT STRATEGIST")
     print("=" * 80)
+
+    llm = get_llm()
+    investment_strategist = create_investment_strategist(llm)
+    investment_strategy_task = create_investment_strategy_task(investment_strategist)
+    
+    strategy_team = Crew(
+        agents=[
+            investment_strategist
+        ],
+        tasks=[
+            investment_strategy_task
+        ],
+        process=Process.sequential,
+        verbose=True
+    )
 
     stage_start = time.perf_counter()
     strategy_result = strategy_team.kickoff(

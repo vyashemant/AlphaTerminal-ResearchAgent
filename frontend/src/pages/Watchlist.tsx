@@ -33,20 +33,14 @@ export function Watchlist() {
 
     const handleAddStock = async (e: React.FormEvent) => {
         e.preventDefault();
-        
         if (!newTicker.trim()) return;
-
         try {
             setIsAdding(true);
-            const addedItem = await ApiClient.addWatchlistItem({
-                ticker: newTicker.trim(),
-                company_name: newCompany.trim() || undefined
+            const added = await ApiClient.addWatchlistItem({
+                ticker: newTicker.trim().toUpperCase(),
+                company_name: newCompany.trim() || undefined,
             });
-            
-            // Optimistic update or refetch
-            setWatchlist(prev => [addedItem, ...prev]);
-            
-            // Clear form
+            setWatchlist(prev => [added, ...prev]);
             setNewTicker('');
             setNewCompany('');
             setError(null);
@@ -58,8 +52,7 @@ export function Watchlist() {
     };
 
     const handleRemoveStock = async (itemId: string) => {
-        if (!confirm('Are you sure you want to remove this stock from your watchlist?')) return;
-        
+        if (!confirm('Remove this stock from your watchlist?')) return;
         try {
             await ApiClient.removeWatchlistItem(itemId);
             setWatchlist(prev => prev.filter(item => item.id !== itemId));
@@ -69,162 +62,124 @@ export function Watchlist() {
     };
 
     return (
-        <div style={{ padding: '2rem', maxWidth: '1440px', margin: '0 auto', width: '100%' }}>
-            <div className="terminal-header" style={{ marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="page-content">
+            {/* Header */}
+            <div className="page-header">
                 <div>
-                    <div className="panel-title" style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Eye size={20} />
-                        PERSONAL WATCHLIST
-                    </div>
+                    <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Eye size={20} style={{ color: 'var(--accent)' }} /> Watchlist
+                    </h1>
                     {!loading && !error && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'var(--mono)' }}>
-                            Tracking {watchlist.length} {watchlist.length === 1 ? 'stock' : 'stocks'}
-                        </div>
+                        <p className="page-subtitle">Tracking {watchlist.length} {watchlist.length === 1 ? 'stock' : 'stocks'}</p>
                     )}
                 </div>
             </div>
 
+            {/* Error banner */}
             {error && (
-                <div className="panel" style={{ color: 'var(--danger)', borderLeft: '2px solid var(--danger)', padding: '1rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <AlertCircle size={16} />
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>ERROR: {error}</div>
+                <div className="error-banner">
+                    <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span>{error}</span>
                 </div>
             )}
 
-            <div className="panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1rem' }}>ADD STOCK TO WATCHLIST</div>
-                <form onSubmit={handleAddStock} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            {/* Add stock form */}
+            <div className="panel" style={{ marginBottom: '1.5rem' }}>
+                <div className="panel-header">
+                    <div className="panel-title"><Plus size={13} /> Add Stock to Watchlist</div>
+                </div>
+                <form onSubmit={handleAddStock} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div className="form-group" style={{ minWidth: 160 }}>
+                        <label htmlFor="wl-ticker" className="form-label">Ticker Symbol</label>
                         <input
+                            id="wl-ticker"
                             type="text"
-                            placeholder="Ticker (e.g. AAPL)"
+                            placeholder="e.g. AAPL"
                             value={newTicker}
-                            onChange={(e) => setNewTicker(e.target.value)}
+                            onChange={(e) => setNewTicker(e.target.value.toUpperCase())}
                             required
-                            style={{
-                                background: 'var(--bg-secondary)',
-                                border: '1px solid var(--border)',
-                                color: 'var(--text-primary)',
-                                padding: '0.5rem',
-                                borderRadius: '4px',
-                                fontSize: '0.875rem',
-                                fontFamily: 'var(--mono)',
-                                width: '200px',
-                                textTransform: 'uppercase'
-                            }}
+                            className="form-input"
+                            style={{ fontFamily: 'var(--mono)', fontWeight: 600, letterSpacing: '0.04em' }}
                         />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div className="form-group" style={{ minWidth: 260, flex: 1 }}>
+                        <label htmlFor="wl-company" className="form-label">Company Name <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></label>
                         <input
+                            id="wl-company"
                             type="text"
-                            placeholder="Company Name (Optional)"
+                            placeholder="e.g. Apple Inc."
                             value={newCompany}
                             onChange={(e) => setNewCompany(e.target.value)}
-                            style={{
-                                background: 'var(--bg-secondary)',
-                                border: '1px solid var(--border)',
-                                color: 'var(--text-primary)',
-                                padding: '0.5rem',
-                                borderRadius: '4px',
-                                fontSize: '0.875rem',
-                                width: '300px'
-                            }}
+                            className="form-input"
                         />
                     </div>
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         disabled={isAdding || !newTicker.trim()}
-                        style={{
-                            background: 'var(--accent-light)',
-                            color: 'var(--bg-primary)',
-                            border: 'none',
-                            padding: '0.5rem 1rem',
-                            borderRadius: '4px',
-                            cursor: (isAdding || !newTicker.trim()) ? 'not-allowed' : 'pointer',
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            opacity: (isAdding || !newTicker.trim()) ? 0.5 : 1
-                        }}
+                        className="btn btn-primary"
+                        style={{ gap: '0.375rem', alignSelf: 'flex-end', marginBottom: '0' }}
                     >
-                        {isAdding ? 'ADDING...' : <><Plus size={16} /> ADD</>}
+                        <Plus size={15} /> {isAdding ? 'Adding…' : 'Add Stock'}
                     </button>
                 </form>
             </div>
 
+            {/* Watchlist table */}
             {loading ? (
-                <div className="panel" style={{ color: 'var(--text-secondary)', padding: '2rem', textAlign: 'center' }}>
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>Loading watchlist...</div>
+                <div className="loading-state">
+                    <Eye size={18} style={{ color: 'var(--accent)' }} />
+                    Loading watchlist…
                 </div>
             ) : watchlist.length === 0 ? (
-                <div className="panel" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Your watchlist is empty.</div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Use the form above to track your first stock.</div>
+                <div className="panel">
+                    <div className="empty-state">
+                        <div className="empty-state-icon"><Eye size={24} /></div>
+                        <div className="empty-state-title">Your Watchlist is Empty</div>
+                        <p className="empty-state-desc">Use the form above to add your first stock to track.</p>
+                    </div>
                 </div>
             ) : (
                 <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
-                    <table className="terminal-table" style={{ width: '100%', tableLayout: 'fixed' }}>
+                    <table className="terminal-table">
                         <thead>
                             <tr>
-                                <th style={{ width: '15%', textAlign: 'left' }}>Ticker</th>
-                                <th style={{ width: '40%', textAlign: 'left' }}>Company</th>
-                                <th style={{ width: '25%', textAlign: 'left' }}>Added On</th>
-                                <th style={{ width: '20%', textAlign: 'right' }}>Actions</th>
+                                <th>Ticker</th>
+                                <th>Company</th>
+                                <th>Added On</th>
+                                <th style={{ textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {watchlist.map((item) => (
-                                <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                                    <td style={{ textAlign: 'left' }}>
-                                        <span className="badge badge-neutral" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{item.ticker}</span>
+                                <tr key={item.id} className="history-row">
+                                    <td>
+                                        <span className="badge badge-accent" style={{ fontSize: '0.8125rem', letterSpacing: '0.04em' }}>
+                                            {item.ticker}
+                                        </span>
                                     </td>
-                                    <td style={{ fontWeight: 600, textAlign: 'left', color: 'var(--text-primary)' }}>
-                                        {item.company_name || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontWeight: 400 }}>Unknown</span>}
+                                    <td style={{ fontWeight: 600 }}>
+                                        {item.company_name || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontWeight: 400 }}>—</span>}
                                     </td>
-                                    <td style={{ fontSize: '0.875rem', textAlign: 'left', color: 'var(--text-secondary)' }}>
+                                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
                                         {formatDate(item.created_at)}
                                     </td>
                                     <td style={{ textAlign: 'right' }}>
                                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                            <button 
+                                            <button
+                                                className="btn btn-outline btn-sm"
                                                 onClick={() => navigate(`/research?ticker=${encodeURIComponent(item.ticker)}&company=${encodeURIComponent(item.company_name || '')}`)}
-                                                style={{ 
-                                                    background: 'transparent',
-                                                    border: '1px solid var(--accent-light)',
-                                                    color: 'var(--accent-light)',
-                                                    padding: '0.25rem 0.5rem',
-                                                    borderRadius: '4px',
-                                                    cursor: 'pointer',
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.25rem',
-                                                    fontSize: '0.75rem'
-                                                }}
                                                 aria-label={`Research ${item.ticker}`}
+                                                style={{ gap: '0.25rem' }}
                                             >
-                                                <Terminal size={12} />
-                                                RESEARCH
+                                                <Terminal size={12} /> Research
                                             </button>
-                                            <button 
+                                            <button
+                                                className="btn btn-danger btn-sm"
                                                 onClick={() => handleRemoveStock(item.id)}
-                                                style={{ 
-                                                    background: 'transparent',
-                                                    border: '1px solid var(--danger)',
-                                                    color: 'var(--danger)',
-                                                    padding: '0.25rem 0.5rem',
-                                                    borderRadius: '4px',
-                                                    cursor: 'pointer',
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.25rem',
-                                                    fontSize: '0.75rem'
-                                                }}
                                                 aria-label={`Remove ${item.ticker}`}
+                                                style={{ gap: '0.25rem' }}
                                             >
-                                                <Trash2 size={12} />
-                                                REMOVE
+                                                <Trash2 size={12} /> Remove
                                             </button>
                                         </div>
                                     </td>

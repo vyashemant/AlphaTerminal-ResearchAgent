@@ -1,5 +1,7 @@
 .git
+.github
 .env
+.env.*
 __pycache__
 *.pyc
 venv
@@ -10,6 +12,8 @@ venv
 node_modules
 dist
 build
+coverage
+.coverage
 frontend/node_modules
 frontend/dist
 data/
