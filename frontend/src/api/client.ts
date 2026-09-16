@@ -6,7 +6,11 @@ import type {
 } from '../types/api';
 import { supabase } from '../lib/supabase';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
+
+if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL) {
+    console.error('CRITICAL: VITE_API_BASE_URL is not set in production environment variables.');
+}
 
 export class ApiClient {
     private static async fetchWithHandling(url: string, options?: RequestInit) {

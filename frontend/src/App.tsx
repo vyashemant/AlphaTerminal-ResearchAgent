@@ -42,8 +42,13 @@ function DashboardLayout() {
 function App() {
     return (
         <Routes>
-            <Route path="/"     element={<LandingPage />} />
-            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/"             element={<LandingPage />} />
+            <Route path="/features"     element={<LandingPage />} />
+            <Route path="/how-it-works" element={<LandingPage />} />
+            <Route path="/technology"   element={<LandingPage />} />
+            <Route path="/architecture" element={<LandingPage />} />
+            <Route path="/about"        element={<LandingPage />} />
+            <Route path="/auth"         element={<AuthPage />} />
 
             <Route element={<ProtectedRoute />}>
                 <Route element={<DashboardLayout />}>

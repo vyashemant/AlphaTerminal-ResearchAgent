@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Logo } from '../components/brand/Logo';
@@ -13,9 +13,27 @@ export const LandingPage: React.FC = () => {
     const { session } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const location = useLocation();
     const ctaHref = session ? '/dashboard' : '/auth';
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
+
+    useEffect(() => {
+        const pathToId: Record<string, string> = {
+            '/features': 'features',
+            '/how-it-works': 'how-it-works',
+            '/technology': 'technology',
+            '/architecture': 'architecture',
+            '/about': 'about',
+        };
+        const targetId = pathToId[location.pathname] || (location.hash ? location.hash.replace('#', '') : null);
+        if (targetId) {
+            const el = document.getElementById(targetId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    }, [location.pathname, location.hash]);
 
     return (
         <div className="lp-container">
