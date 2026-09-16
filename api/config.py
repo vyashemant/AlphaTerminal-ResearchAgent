@@ -2,8 +2,8 @@ import os
 import logging
 import sys
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, model_validator
-from typing import List, Optional
+from pydantic import Field, model_validator, field_validator
+from typing import List, Optional, Union
 
 class Settings(BaseSettings):
     DATABASE_BACKEND: str = Field(default="sqlite")
@@ -17,6 +17,25 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field(default="INFO")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    v = json.loads(v)
+                except Exception:
+                    pass
+            else:
+                v = [origin.strip() for origin in v.split(",") if origin.strip()]
+        if isinstance(v, list):
+            if "*" in v or any(origin == "*" for origin in v):
+                raise ValueError("Wildcard '*' is not permitted in CORS_ORIGINS for security.")
+            return v
+        return v
 
     @model_validator(mode='after')
     def validate_supabase_config(self) -> 'Settings':

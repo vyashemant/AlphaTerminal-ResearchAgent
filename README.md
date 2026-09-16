@@ -1,6 +1,6 @@
 # Alpha Terminal
 
-**Alpha Terminal** is a production-oriented AI-powered financial research platform. It combines deterministic financial data retrieval with advanced AI analysis (via Gemini/CrewAI) to deliver evidence-backed AI investment research and market insights, screeners, paper trading portfolios, and personalized watchlists.
+**Alpha Terminal** is a personal engineering and portfolio project by Hemant Vyas demonstrating a production-oriented AI-powered financial research platform. It combines deterministic financial data retrieval with advanced AI analysis (via Gemini/CrewAI) to deliver evidence-backed AI investment research and market insights, screeners, paper trading portfolios, and personalized watchlists.
 
 ---
 
@@ -35,7 +35,7 @@ The platform operates a clear separation of concerns between raw data processing
 ## 5. Tech Stack
 - **Frontend**: React 19, Vite, TypeScript, React Router, Recharts, Lucide Icons, vanilla CSS (Light/Dark theme).
 - **Backend**: FastAPI, Python 3.10+, Pydantic, yfinance, TTLCache (cachetools).
-- **AI / Agents**: CrewAI, Google Gemini (`gemini-2.5-pro`).
+- **AI / Agents**: CrewAI, Google Gemini (`gemini-3.5-flash`).
 - **Database / Auth**: Supabase (PostgreSQL), SQLite (fallback/mock).
 
 ## 6. Application Structure
@@ -158,6 +158,9 @@ SUPABASE_SECRET_KEY=your-server-only-secret
 GEMINI_API_KEY=your-gemini-key
 SEC_USER_AGENT=YourAppName your-email@example.com
 MARKETAUX_API_KEY=your-marketaux-key
+RESEARCH_JOB_TIMEOUT_SECONDS=3600
+CORS_ORIGINS=["http://localhost:5173"]
+LOG_LEVEL=INFO
 ```
 
 **Frontend (`frontend/.env`)**:

@@ -1,13 +1,29 @@
-crewai
-python-dotenv
-google-genai
-yfinance
-pandas
-requests
+# ============================================================
+# Alpha Terminal — Python Dependencies
+# ============================================================
+
+# Web API Framework & ASGI Server
 fastapi
 uvicorn
 httpx
-pytest
-supabase>=2.0.0
+
+# Configuration & Data Validation
+pydantic
 pydantic-settings
+python-dotenv
+
+# AI & Multi-Agent Framework
+crewai
+google-genai
+
+# Financial Data, HTTP & Caching
+yfinance
+pandas
+requests
 cachetools
+
+# Persistence & Database
+supabase>=2.0.0
+
+# Testing & Quality Assurance
+pytest
