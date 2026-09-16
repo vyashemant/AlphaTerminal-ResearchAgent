@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, HelpCircle, Search, Settings, User, LogOut, Sun, Moon } from 'lucide-react';
+import { Search, Sun, Moon, LogOut, User, Plus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -9,11 +9,9 @@ export function TopNav() {
     const { theme, toggleTheme } = useTheme();
     const location = useLocation();
     const navigate = useNavigate();
-    
+
     const [searchQuery, setSearchQuery] = useState('');
-    
-    // Minimal panels for dead buttons
-    const [activePanel, setActivePanel] = useState<string | null>(null);
+    const [showUserMenu, setShowUserMenu] = useState(false);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -23,80 +21,106 @@ export function TopNav() {
         }
     };
 
-    const togglePanel = (panelName: string) => {
-        setActivePanel(prev => prev === panelName ? null : panelName);
-    };
+    const isActive = (path: string) => location.pathname.startsWith(path);
 
     return (
         <header className="top-bar" style={{ position: 'relative' }}>
-            <form onSubmit={handleSearch} role="search" className="search-container" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', background: 'var(--bg-primary)', padding: '0.375rem 0.75rem', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                <button type="submit" aria-label="Search" style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', display: 'flex', outline: 'none' }}>
-                    <Search size={16} />
+            {/* Search */}
+            <form onSubmit={handleSearch} role="search" className="search-container">
+                <button type="submit" aria-label="Search ticker" style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', display: 'flex', lineHeight: 0 }}>
+                    <Search size={14} />
                 </button>
-                <input 
-                    type="search" 
+                <input
+                    type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search tickers, companies..." 
-                    aria-label="Search query"
-                    style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.875rem', width: '200px' }}
+                    placeholder="Search ticker..."
+                    aria-label="Search tickers"
                 />
             </form>
 
-            <nav className="top-nav">
-                <Link to="/markets" className={`top-nav-item ${location.pathname.startsWith('/markets') ? 'active' : ''}`} style={{textDecoration: 'none'}}>Markets</Link>
-                <Link to="/screeners" className={`top-nav-item ${location.pathname.startsWith('/screeners') ? 'active' : ''}`} style={{textDecoration: 'none'}}>Screeners</Link>
-                <Link to="/portfolio" className={`top-nav-item ${location.pathname.startsWith('/portfolio') ? 'active' : ''}`} style={{textDecoration: 'none'}}>Portfolio</Link>
-                <Link to="/dashboard" className={`top-nav-item ${(location.pathname === '/dashboard' || location.pathname === '/' || location.pathname.startsWith('/research') || location.pathname.startsWith('/history') || location.pathname.startsWith('/watchlist')) ? 'active' : ''}`} style={{textDecoration: 'none'}}>Analysis</Link>
+            {/* Centre nav tabs */}
+            <nav className="top-nav" aria-label="Main navigation">
+                <Link to="/markets"   className={`top-nav-item ${isActive('/markets')   ? 'active' : ''}`}>Markets</Link>
+                <Link to="/screeners" className={`top-nav-item ${isActive('/screeners') ? 'active' : ''}`}>Screeners</Link>
+                <Link to="/portfolio" className={`top-nav-item ${isActive('/portfolio') ? 'active' : ''}`}>Portfolio</Link>
             </nav>
 
+            {/* Right actions */}
             <div className="top-actions">
-                <button 
-                    className="action-btn" 
+                {/* New Research CTA */}
+                <button className="btn btn-primary btn-sm" onClick={() => navigate('/research')} style={{ gap: '0.375rem' }}>
+                    <Plus size={13} />
+                    Research
+                </button>
+
+                {/* Theme toggle */}
+                <button
+                    className="action-btn"
                     onClick={toggleTheme}
                     title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                     aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                 >
-                    {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                    {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
-                <button className="trade-btn" onClick={() => navigate('/portfolio')}>Paper Trade</button>
-                
-                <div style={{ position: 'relative' }}>
-                    <button className="action-btn" onClick={() => togglePanel('bell')}><Bell size={18} /></button>
-                    {activePanel === 'bell' && (
-                        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'var(--bg-panel)', padding: '1rem', borderRadius: '4px', border: '1px solid var(--border)', zIndex: 10, width: '200px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                            No new notifications.
-                        </div>
-                    )}
-                </div>
-                
-                <div style={{ position: 'relative' }}>
-                    <button className="action-btn" onClick={() => togglePanel('settings')}><Settings size={18} /></button>
-                    {activePanel === 'settings' && (
-                        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'var(--bg-panel)', padding: '1rem', borderRadius: '4px', border: '1px solid var(--border)', zIndex: 10, width: '250px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                            <strong style={{color: 'var(--text-primary)'}}>Settings</strong><br/><br/>
-                            Account: {user?.email}<br/>
-                            Backend: Supabase
-                        </div>
-                    )}
-                </div>
-                
-                <div style={{ position: 'relative' }}>
-                    <button className="action-btn" onClick={() => togglePanel('help')}><HelpCircle size={18} /></button>
-                    {activePanel === 'help' && (
-                        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'var(--bg-panel)', padding: '1rem', borderRadius: '4px', border: '1px solid var(--border)', zIndex: 10, width: '300px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                            <strong style={{color: 'var(--text-primary)'}}>Help & About</strong><br/><br/>
-                            Alpha Terminal is a paper-trading and research platform.<br/><br/>
-                            <em>Disclaimer: All trades are simulated. Not real financial advice.</em>
-                        </div>
-                    )}
-                </div>
-                
-                <button className="action-btn" title="Profile" style={{ marginLeft: '0.5rem' }} onClick={() => togglePanel('settings')}><User size={18} /></button>
+
+                {/* User menu */}
                 {user && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '0.5rem' }}>
-                        <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{user.email}</span>
-                        <button className="action-btn" onClick={signOut} title="Sign Out"><LogOut size={18} /></button>
+                    <div style={{ position: 'relative' }}>
+                        <button
+                            className="action-btn"
+                            onClick={() => setShowUserMenu(v => !v)}
+                            aria-label="User menu"
+                            aria-expanded={showUserMenu}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+                        >
+                            <div style={{
+                                width: 26, height: 26, borderRadius: '50%',
+                                background: 'var(--accent-bg)', border: '1px solid var(--accent-border)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'var(--accent)', flexShrink: 0
+                            }}>
+                                <User size={13} />
+                            </div>
+                        </button>
+
+                        {showUserMenu && (
+                            <>
+                                {/* Dismiss backdrop */}
+                                <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setShowUserMenu(false)} />
+                                <div style={{
+                                    position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                                    background: 'var(--surface)', border: '1px solid var(--border)',
+                                    borderRadius: 'var(--radius-md)', zIndex: 50, minWidth: '200px',
+                                    boxShadow: 'var(--shadow-md)', overflow: 'hidden'
+                                }}>
+                                    <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid var(--border)' }}>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.125rem' }}>Signed in as</div>
+                                        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {user.email}
+                                        </div>
+                                    </div>
+                                    <div style={{ padding: '0.5rem' }}>
+                                        <button
+                                            onClick={() => { signOut(); setShowUserMenu(false); }}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: '0.625rem',
+                                                width: '100%', padding: '0.5rem 0.75rem',
+                                                background: 'none', border: 'none', cursor: 'pointer',
+                                                color: 'var(--danger)', fontSize: '0.875rem', fontWeight: 500,
+                                                borderRadius: 'var(--radius-sm)', textAlign: 'left',
+                                                transition: 'background-color 0.15s'
+                                            }}
+                                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--danger-bg)')}
+                                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                        >
+                                            <LogOut size={14} />
+                                            Sign out
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

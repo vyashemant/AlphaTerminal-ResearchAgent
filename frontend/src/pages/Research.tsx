@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Terminal, Database, BrainCircuit, Activity, Star, StarOff } from 'lucide-react';
+import { Terminal, Database, BrainCircuit, Activity, Star, StarOff, Plus } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { useResearchPolling } from '../hooks/useResearchPolling';
 import { ResearchDashboard } from '../components/dashboard/ResearchDashboard';
@@ -9,12 +9,11 @@ export function Research() {
     const { jobId: urlJobId } = useParams<{ jobId: string }>();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    
+
     const [company, setCompany] = useState(searchParams.get('company') || '');
     const [ticker, setTicker] = useState(searchParams.get('ticker') || '');
     const [submitting, setSubmitting] = useState(false);
 
-    // Watchlist state
     const [isInWatchlist, setIsInWatchlist] = useState(false);
     const [watchlistItemId, setWatchlistItemId] = useState<string | null>(null);
     const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
@@ -28,30 +27,25 @@ export function Research() {
         }
     }, [urlJobId, setJobId, jobId]);
 
-    // Check watchlist when research is completed
     useEffect(() => {
         if (status === 'completed' && result?.result) {
-            const ticker = result.result.ticker;
-            if (!ticker || typeof ticker !== 'string' || ticker.trim() === '') {
-                return;
-            }
+            const t = result.result.ticker;
+            if (!t || typeof t !== 'string' || t.trim() === '') return;
 
             const checkWatchlist = async () => {
                 setIsWatchlistLoading(true);
                 try {
                     const response = await ApiClient.getWatchlist();
-                    const existingItem = response.watchlist.find(
-                        (item) => item.ticker.toUpperCase() === ticker.toUpperCase()
-                    );
-                    if (existingItem) {
+                    const existing = response.watchlist.find(item => item.ticker.toUpperCase() === t.toUpperCase());
+                    if (existing) {
                         setIsInWatchlist(true);
-                        setWatchlistItemId(existingItem.id);
+                        setWatchlistItemId(existing.id);
                     } else {
                         setIsInWatchlist(false);
                         setWatchlistItemId(null);
                     }
-                } catch (err) {
-                    console.error('Failed to check watchlist status', err);
+                } catch (_e) {
+                    console.error('Failed to check watchlist status');
                 } finally {
                     setIsWatchlistLoading(false);
                 }
@@ -62,43 +56,34 @@ export function Research() {
 
     const handleWatchlistAction = async () => {
         if (!result?.result) return;
-        const ticker = result.result.ticker;
-        if (!ticker || typeof ticker !== 'string' || ticker.trim() === '') return;
+        const t = result.result.ticker;
+        if (!t || typeof t !== 'string' || t.trim() === '') return;
 
         setWatchlistActionError(null);
         setIsWatchlistLoading(true);
 
         try {
             if (isInWatchlist && watchlistItemId) {
-                // Remove
                 await ApiClient.removeWatchlistItem(watchlistItemId);
                 setIsInWatchlist(false);
                 setWatchlistItemId(null);
             } else {
-                // Add
-                const addedItem = await ApiClient.addWatchlistItem({
-                    ticker: ticker,
-                    company_name: result.result.company || ''
+                const added = await ApiClient.addWatchlistItem({
+                    ticker: t,
+                    company_name: result.result.company || '',
                 });
                 setIsInWatchlist(true);
-                setWatchlistItemId(addedItem.id);
+                setWatchlistItemId(added.id);
             }
         } catch (err: any) {
-            // Handle 409 Conflict specifically
             if (err.status === 409) {
                 try {
                     const response = await ApiClient.getWatchlist();
-                    const existingItem = response.watchlist.find(
-                        (item) => item.ticker.toUpperCase() === ticker.toUpperCase()
-                    );
-                    if (existingItem) {
-                        setIsInWatchlist(true);
-                        setWatchlistItemId(existingItem.id);
-                    } else {
-                        setIsInWatchlist(true); // Fallback if somehow not found
-                    }
-                } catch (fetchErr) {
-                    setIsInWatchlist(true); // Fallback
+                    const existing = response.watchlist.find(item => item.ticker.toUpperCase() === t.toUpperCase());
+                    if (existing) { setIsInWatchlist(true); setWatchlistItemId(existing.id); }
+                    else { setIsInWatchlist(true); }
+                } catch (_fetchErr) {
+                    setIsInWatchlist(true);
                 }
             } else {
                 setWatchlistActionError(err.message || 'Watchlist action failed');
@@ -112,7 +97,6 @@ export function Research() {
         e.preventDefault();
         setSubmitting(true);
         setError(null);
-
         try {
             const response = await ApiClient.submitResearch({ company, ticker });
             navigate(`/research/${response.job_id}`);
@@ -123,66 +107,62 @@ export function Research() {
         }
     };
 
+    // ── Research result view ─────────────────────────────────────
     if (jobId) {
         return (
-            <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
-                <div className="panel" style={{ marginBottom: '1.5rem', backgroundColor: 'var(--bg-panel)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="page-content">
+                {/* Job header */}
+                <div className="panel" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                         <div>
-                            <div style={{ fontFamily: 'var(--mono)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>JOB ID: {jobId}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
-                                <span className={`badge ${status === 'completed' ? 'badge-success' : status === 'failed' ? 'badge-danger' : 'badge-warning'}`}>
+                            <div style={{ fontFamily: 'var(--mono)', fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '0.5rem', letterSpacing: '0.06em' }}>
+                                JOB ID · {jobId}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <span className={`badge ${
+                                    status === 'completed' ? 'badge-success' :
+                                    status === 'failed'    ? 'badge-danger'  : 'badge-warning'
+                                }`}>
                                     {status ? status.toUpperCase() : 'LOADING'}
                                 </span>
                                 {(status === 'queued' || status === 'running') && (
                                     <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                        Research is in progress. This may take a few minutes...
+                                        Research in progress. This may take a few minutes…
                                     </span>
                                 )}
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            {status === 'completed' && result?.result && result.result.ticker && typeof result.result.ticker === 'string' && result.result.ticker.trim() !== '' && (
-                                <button 
-                                    className="action-btn" 
-                                    onClick={handleWatchlistAction} 
+
+                        <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+                            {status === 'completed' && result?.result && result.result.ticker &&
+                             typeof result.result.ticker === 'string' && result.result.ticker.trim() !== '' && (
+                                <button
+                                    className={`btn ${isInWatchlist ? 'btn-outline' : 'btn-primary'} btn-sm`}
+                                    onClick={handleWatchlistAction}
                                     disabled={isWatchlistLoading}
-                                    style={{ 
-                                        padding: '0.5rem 1rem', 
-                                        backgroundColor: isInWatchlist ? 'var(--bg-secondary)' : 'var(--accent-light)',
-                                        color: isInWatchlist ? 'var(--text-primary)' : 'var(--bg-primary)',
-                                        border: '1px solid var(--border)', 
-                                        borderRadius: '4px', 
-                                        fontSize: '0.75rem',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        fontWeight: 600,
-                                        opacity: isWatchlistLoading ? 0.7 : 1
-                                    }}
+                                    style={{ gap: '0.375rem' }}
                                 >
-                                    {isWatchlistLoading ? (
-                                        'LOADING...'
-                                    ) : isInWatchlist ? (
-                                        <><StarOff size={14} /> REMOVE FROM WATCHLIST</>
-                                    ) : (
-                                        <><Star size={14} /> ADD TO WATCHLIST</>
-                                    )}
+                                    {isWatchlistLoading ? '…' : isInWatchlist
+                                        ? <><StarOff size={13} /> Remove from Watchlist</>
+                                        : <><Star size={13} /> Add to Watchlist</>
+                                    }
                                 </button>
                             )}
-                            <button className="action-btn" onClick={() => navigate('/research')} style={{ padding: '0.5rem 1rem', backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.75rem' }}>
-                                START NEW
+                            <button className="btn btn-outline btn-sm" onClick={() => navigate('/research')} style={{ gap: '0.375rem' }}>
+                                <Plus size={13} /> New Research
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {watchlistActionError && <div className="badge badge-warning" style={{ display: 'block', padding: '1rem', marginBottom: '1.5rem' }}>Watchlist Error: {watchlistActionError}</div>}
-
-                {error && <div className="badge badge-danger" style={{ display: 'block', padding: '1rem', marginBottom: '1.5rem' }}>{error}</div>}
-                
+                {watchlistActionError && (
+                    <div className="error-banner" style={{ marginBottom: '1.5rem' }}>{watchlistActionError}</div>
+                )}
+                {error && (
+                    <div className="error-banner" style={{ marginBottom: '1.5rem' }}>{error}</div>
+                )}
                 {status === 'failed' && (
-                    <div className="badge badge-danger" style={{ display: 'block', padding: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="error-banner" style={{ marginBottom: '1.5rem' }}>
                         Research job failed: {result?.error || 'Unknown error'}
                     </div>
                 )}
@@ -194,75 +174,94 @@ export function Research() {
         );
     }
 
+    // ── Research form ─────────────────────────────────────────────
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '4rem' }}>
-            <div style={{ width: '100%', maxWidth: '480px' }}>
+        <div className="page-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '3rem' }}>
+            <div style={{ width: '100%', maxWidth: '520px' }}>
+                {/* Header */}
                 <div style={{ marginBottom: '2rem' }}>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Terminal size={24} /> New Research
-                    </h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                        Initialize an AI-driven public company equity research sequence.
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.5rem' }}>
+                        <div style={{
+                            width: 36, height: 36, background: 'var(--accent-bg)',
+                            border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-sm)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)'
+                        }}>
+                            <Terminal size={18} />
+                        </div>
+                        <h1 className="page-title">New Research</h1>
+                    </div>
+                    <p className="page-subtitle">Initialize an AI-driven public company equity research sequence.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div className="panel" style={{ padding: 0 }}>
+                {/* Form panel */}
+                <div className="panel" style={{ padding: 0, marginBottom: '1.5rem' }}>
+                    <form onSubmit={handleSubmit}>
                         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
-                            <label htmlFor="company" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                            <label htmlFor="research-company" className="form-label" style={{ marginBottom: '0.375rem', display: 'block' }}>
                                 Company Name
                             </label>
                             <input
-                                id="company"
+                                id="research-company"
                                 type="text"
                                 placeholder="e.g. Apple Inc."
                                 value={company}
                                 onChange={e => setCompany(e.target.value)}
                                 required
                                 style={{
-                                    width: '100%', background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none'
+                                    width: '100%', background: 'transparent', border: 'none',
+                                    color: 'var(--text-primary)', fontSize: '1.0625rem', fontWeight: 500,
+                                    outline: 'none', fontFamily: 'var(--sans)', padding: 0,
                                 }}
                             />
                         </div>
-                        <div style={{ padding: '1rem 1.25rem' }}>
-                            <label htmlFor="ticker" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+                            <label htmlFor="research-ticker" className="form-label" style={{ marginBottom: '0.375rem', display: 'block' }}>
                                 Ticker Symbol
                             </label>
                             <input
-                                id="ticker"
+                                id="research-ticker"
                                 type="text"
                                 placeholder="e.g. AAPL"
                                 value={ticker}
                                 onChange={e => setTicker(e.target.value.toUpperCase())}
                                 required
                                 style={{
-                                    width: '100%', background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none'
+                                    width: '100%', background: 'transparent', border: 'none',
+                                    color: 'var(--text-primary)', fontSize: '1.0625rem', fontWeight: 600,
+                                    fontFamily: 'var(--mono)', outline: 'none', padding: 0, letterSpacing: '0.04em',
                                 }}
                             />
                         </div>
-                    </div>
+                        <div style={{ padding: '1rem 1.25rem' }}>
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="btn btn-primary btn-full"
+                                style={{ padding: '0.75rem', fontSize: '0.9375rem', fontWeight: 600 }}
+                            >
+                                {submitting ? 'Initializing Research…' : 'Start Research'}
+                            </button>
+                            {error && <div className="error-banner" style={{ marginTop: '1rem', marginBottom: 0 }}>{error}</div>}
+                        </div>
+                    </form>
+                </div>
 
-                    <button type="submit" disabled={submitting} className="trade-btn" style={{ width: '100%', padding: '0.875rem', fontSize: '0.875rem' }}>
-                        {submitting ? 'INITIALIZING...' : 'START RESEARCH'}
-                    </button>
-                    {error && <div className="badge badge-danger" style={{ display: 'block', padding: '1rem', textAlign: 'center' }}>{error}</div>}
-                </form>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid var(--border)' }}>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                        <Activity size={16} color="var(--text-secondary)" style={{ marginBottom: '0.5rem' }} />
-                        <div style={{ fontSize: '0.625rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Market Data</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>Yahoo Finance</div>
-                    </div>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                        <Database size={16} color="var(--text-secondary)" style={{ marginBottom: '0.5rem' }} />
-                        <div style={{ fontSize: '0.625rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Financial Data</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>SEC EDGAR</div>
-                    </div>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                        <BrainCircuit size={16} color="var(--text-secondary)" style={{ marginBottom: '0.5rem' }} />
-                        <div style={{ fontSize: '0.625rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>AI Analysis</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>Google Gemini</div>
+                {/* Data sources */}
+                <div className="panel" style={{ padding: '1rem 1.25rem' }}>
+                    <div className="panel-title" style={{ marginBottom: '1rem' }}>Data Sources</div>
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        {[
+                            { icon: <Activity size={15} />, label: 'Market Data', value: 'Yahoo Finance' },
+                            { icon: <Database size={15} />, label: 'Filings', value: 'SEC EDGAR' },
+                            { icon: <BrainCircuit size={15} />, label: 'AI Analysis', value: 'Google Gemini' },
+                        ].map(src => (
+                            <div key={src.label} style={{ flex: 1, minWidth: 110, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: 'var(--text-muted)', fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                                    {src.icon} {src.label}
+                                </div>
+                                <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>{src.value}</div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>

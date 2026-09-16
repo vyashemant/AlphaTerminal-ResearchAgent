@@ -10,12 +10,10 @@ export const Portfolio: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Modal state
     const [showModal, setShowModal] = useState(false);
     const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [selectedItem, setSelectedItem] = useState<PortfolioItem | null>(null);
 
-    // Form state
     const [formTicker, setFormTicker] = useState('');
     const [formQuantity, setFormQuantity] = useState('');
     const [formAvgCost, setFormAvgCost] = useState('');
@@ -26,16 +24,12 @@ export const Portfolio: React.FC = () => {
         try {
             const data = await ApiClient.getPortfolio();
             setHoldings(data.portfolio);
-            
-            // Fetch prices for all holdings
             const priceMap: Record<string, number> = {};
             await Promise.all(data.portfolio.map(async (item) => {
                 try {
                     const quote = await ApiClient.getMarketQuote(item.ticker);
-                    if (quote && quote.market_data && quote.market_data.current_price) {
-                        priceMap[item.ticker] = quote.market_data.current_price;
-                    }
-                } catch (e) {
+                    if (quote?.market_data?.current_price) priceMap[item.ticker] = quote.market_data.current_price;
+                } catch (_e) {
                     console.error(`Failed to fetch price for ${item.ticker}`);
                 }
             }));
@@ -52,53 +46,28 @@ export const Portfolio: React.FC = () => {
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const openAddModal = () => {
-        setModalMode('add');
-        setFormTicker('');
-        setFormQuantity('');
-        setFormAvgCost('');
-        setSelectedItem(null);
-        setShowModal(true);
+        setModalMode('add'); setFormTicker(''); setFormQuantity(''); setFormAvgCost('');
+        setSelectedItem(null); setShowModal(true);
     };
 
     const openEditModal = (item: PortfolioItem) => {
-        setModalMode('edit');
-        setSelectedItem(item);
-        setFormTicker(item.ticker);
-        setFormQuantity(item.quantity.toString());
-        setFormAvgCost(item.average_cost.toString());
+        setModalMode('edit'); setSelectedItem(item);
+        setFormTicker(item.ticker); setFormQuantity(item.quantity.toString()); setFormAvgCost(item.average_cost.toString());
         setShowModal(true);
     };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        
         const q = parseFloat(formQuantity);
         const c = parseFloat(formAvgCost);
-
-        if (isNaN(q) || !isFinite(q) || q <= 0) {
-            setError('Quantity must be a number greater than 0.');
-            setShowModal(false);
-            return;
-        }
-        if (isNaN(c) || !isFinite(c) || c < 0) {
-            setError('Average cost must be a non-negative number.');
-            setShowModal(false);
-            return;
-        }
-
+        if (isNaN(q) || !isFinite(q) || q <= 0) { setError('Quantity must be a number greater than 0.'); setShowModal(false); return; }
+        if (isNaN(c) || !isFinite(c) || c < 0) { setError('Average cost must be a non-negative number.'); setShowModal(false); return; }
         try {
             if (modalMode === 'add') {
-                await ApiClient.addPortfolioItem({
-                    ticker: formTicker,
-                    quantity: q,
-                    average_cost: c
-                });
+                await ApiClient.addPortfolioItem({ ticker: formTicker, quantity: q, average_cost: c });
             } else if (modalMode === 'edit' && selectedItem) {
-                await ApiClient.updatePortfolioItem(selectedItem.id, {
-                    quantity: q,
-                    average_cost: c
-                });
+                await ApiClient.updatePortfolioItem(selectedItem.id, { quantity: q, average_cost: c });
             }
             setShowModal(false);
             fetchPortfolio();
@@ -109,7 +78,7 @@ export const Portfolio: React.FC = () => {
     };
 
     const handleDelete = async (id: string) => {
-        if (!window.confirm('Are you sure you want to delete this holding?')) return;
+        if (!window.confirm('Delete this holding?')) return;
         setError(null);
         try {
             await ApiClient.deletePortfolioItem(id);
@@ -122,7 +91,6 @@ export const Portfolio: React.FC = () => {
     const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
     const formatPct = (val: number) => `${val.toFixed(2)}%`;
 
-    // Calculations
     const anyPriceMissing = holdings.some(h => prices[h.ticker] === undefined);
     const enrichedHoldings = holdings.map(item => {
         const currentPrice = prices[item.ticker];
@@ -130,169 +98,165 @@ export const Portfolio: React.FC = () => {
         const marketValue = currentPrice !== undefined ? item.quantity * currentPrice : undefined;
         const unrealizedPL = marketValue !== undefined ? marketValue - invested : undefined;
         const unrealizedPLPct = (unrealizedPL !== undefined && invested > 0) ? (unrealizedPL / invested) * 100 : undefined;
-        return {
-            ...item,
-            currentPrice,
-            invested,
-            marketValue,
-            unrealizedPL,
-            unrealizedPLPct
-        };
+        return { ...item, currentPrice, invested, marketValue, unrealizedPL, unrealizedPLPct };
     });
 
     const totalInvested = enrichedHoldings.reduce((sum, item) => sum + item.invested, 0);
-    const totalValue = (!loading && !anyPriceMissing) 
-        ? enrichedHoldings.reduce((sum, item) => sum + (item.marketValue || 0), 0) 
-        : undefined;
-
+    const totalValue = (!loading && !anyPriceMissing) ? enrichedHoldings.reduce((sum, item) => sum + (item.marketValue || 0), 0) : undefined;
     const enrichedHoldingsWithWeight = enrichedHoldings.map(item => ({
         ...item,
-        weight: (totalValue !== undefined && totalValue > 0 && item.marketValue !== undefined) 
-            ? (item.marketValue / totalValue) * 100 
-            : 0
+        weight: (totalValue !== undefined && totalValue > 0 && item.marketValue !== undefined) ? (item.marketValue / totalValue) * 100 : 0,
     }));
-
     const totalUnrealizedPL = totalValue !== undefined ? totalValue - totalInvested : undefined;
     const totalUnrealizedPLPct = (totalUnrealizedPL !== undefined && totalInvested > 0) ? (totalUnrealizedPL / totalInvested) * 100 : undefined;
-    
-    const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4'];
+
+    const COLORS = ['#D9774F', '#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6', '#f43f5e'];
 
     return (
-        <div className="research-container" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div className="page-content">
+            {/* Header */}
+            <div className="page-header">
                 <div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>Paper Portfolio</h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Track simulated holdings and performance</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <h1 className="page-title">Paper Portfolio</h1>
+                        <span className="badge badge-warning">SIMULATED</span>
+                    </div>
+                    <p className="page-subtitle">Simulated holdings — not real trades or financial advice.</p>
                 </div>
-                <button className="trade-btn" onClick={openAddModal} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Plus size={16} /> Add Holding
-                </button>
+                <div className="page-header-actions">
+                    <button className="action-btn" onClick={fetchPortfolio} disabled={loading} title="Refresh prices" style={{ padding: '0.5rem' }}>
+                        <RefreshCw size={15} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+                    </button>
+                    <button className="btn btn-primary" onClick={openAddModal} style={{ gap: '0.375rem' }}>
+                        <Plus size={15} /> Add Holding
+                    </button>
+                </div>
             </div>
 
-            {error && (
-                <div className="badge badge-danger" style={{ padding: '1rem', marginBottom: '2rem' }}>
-                    {error}
-                </div>
-            )}
+            {error && <div className="error-banner">{error}</div>}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-                <div className="panel" style={{ padding: '1.5rem' }}>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Total Market Value</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {loading ? 'Loading...' : (totalValue !== undefined ? formatCurrency(totalValue) : '—')}
-                    </div>
+            {/* Summary stats */}
+            <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+                <div className="stat-card">
+                    <div className="stat-label">Market Value</div>
+                    <div className="stat-value">{loading ? '—' : (totalValue !== undefined ? formatCurrency(totalValue) : '—')}</div>
                 </div>
-                <div className="panel" style={{ padding: '1.5rem' }}>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Total Invested</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{formatCurrency(totalInvested)}</div>
+                <div className="stat-card">
+                    <div className="stat-label">Total Invested</div>
+                    <div className="stat-value">{formatCurrency(totalInvested)}</div>
                 </div>
-                <div className="panel" style={{ padding: '1.5rem' }}>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Unrealized P/L</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 600, color: totalUnrealizedPL !== undefined ? (totalUnrealizedPL >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {loading ? (
-                            'Loading...'
-                        ) : totalUnrealizedPL !== undefined && totalUnrealizedPLPct !== undefined ? (
+                <div className="stat-card">
+                    <div className="stat-label">Unrealized P/L</div>
+                    <div className={`stat-value ${totalUnrealizedPL !== undefined ? (totalUnrealizedPL >= 0 ? 'positive' : 'negative') : ''}`}
+                         style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        {loading ? '—' : totalUnrealizedPL !== undefined && totalUnrealizedPLPct !== undefined ? (
                             <>
-                                {totalUnrealizedPL >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-                                {totalUnrealizedPL > 0 ? '+' : ''}{formatCurrency(totalUnrealizedPL)} ({formatPct(totalUnrealizedPLPct)})
+                                {totalUnrealizedPL >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                                {totalUnrealizedPL > 0 ? '+' : ''}{formatCurrency(totalUnrealizedPL)}
                             </>
-                        ) : (
-                            '—'
-                        )}
+                        ) : '—'}
                     </div>
+                    {totalUnrealizedPLPct !== undefined && (
+                        <div style={{ fontSize: '0.8125rem', color: totalUnrealizedPLPct >= 0 ? 'var(--success)' : 'var(--danger)', marginTop: '0.25rem' }}>
+                            ({totalUnrealizedPLPct > 0 ? '+' : ''}{formatPct(totalUnrealizedPLPct)})
+                        </div>
+                    )}
+                </div>
+                <div className="stat-card">
+                    <div className="stat-label">Holdings</div>
+                    <div className="stat-value">{holdings.length}</div>
                 </div>
             </div>
 
-            {loading && enrichedHoldingsWithWeight.length === 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-                    <RefreshCw className="spinner" size={24} style={{ animation: 'spin 1s linear infinite', marginBottom: '1rem' }} />
-                    <p>Loading portfolio data...</p>
+            {loading && holdings.length === 0 && (
+                <div className="loading-state">
+                    <RefreshCw size={18} style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite' }} />
+                    Loading portfolio…
                 </div>
             )}
 
+            {/* Allocation chart */}
             {!loading && enrichedHoldingsWithWeight.length > 0 && totalValue !== undefined && (
-                <div className="panel" style={{ marginBottom: '2rem', height: '240px', display: 'flex', flexDirection: 'column' }}>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <PieChartIcon size={16} /> Allocation
-                    </h3>
+                <div className="panel" style={{ marginBottom: '1.5rem', height: '260px', display: 'flex', flexDirection: 'column' }}>
+                    <div className="panel-header">
+                        <div className="panel-title"><PieChartIcon size={13} /> Allocation</div>
+                    </div>
                     <div style={{ flex: 1, minHeight: 0 }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
                                     data={enrichedHoldingsWithWeight}
-                                    cx="50%"
-                                    cy="45%"
-                                    innerRadius={50}
-                                    outerRadius={75}
-                                    paddingAngle={5}
-                                    dataKey="marketValue"
-                                    nameKey="ticker"
+                                    cx="50%" cy="45%"
+                                    innerRadius={48} outerRadius={75}
+                                    paddingAngle={4}
+                                    dataKey="marketValue" nameKey="ticker"
                                 >
                                     {enrichedHoldingsWithWeight.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <RechartsTooltip 
+                                <RechartsTooltip
                                     formatter={(value: any) => formatCurrency(Number(value))}
-                                    contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: '4px' }}
+                                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem' }}
                                     itemStyle={{ color: 'var(--text-primary)' }}
                                 />
-                                <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                <Legend wrapperStyle={{ paddingTop: '8px', fontSize: '0.8125rem' }} />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
             )}
 
+            {/* Holdings table */}
             <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
-                <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>Holdings</h3>
-                    <button className="action-btn" onClick={fetchPortfolio} disabled={loading}><RefreshCw size={16} className={loading ? "spinner" : ""} style={loading ? {animation: 'spin 1s linear infinite'} : {}} /></button>
+                <div className="panel-header" style={{ padding: '1rem 1.25rem' }}>
+                    <div className="panel-title">Holdings</div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                    <table className="terminal-table">
                         <thead>
-                            <tr style={{ background: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--text-secondary)' }}>
-                                <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Ticker</th>
-                                <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Qty</th>
-                                <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Avg Cost</th>
-                                <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Price</th>
-                                <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Market Value</th>
-                                <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Weight</th>
-                                <th style={{ padding: '1rem 1.5rem', fontWeight: 500 }}>Total P/L</th>
-                                <th style={{ padding: '1rem 1.5rem', fontWeight: 500, textAlign: 'right' }}>Actions</th>
+                            <tr>
+                                <th>Ticker</th>
+                                <th className="numeric">Qty</th>
+                                <th className="numeric">Avg Cost</th>
+                                <th className="numeric">Price</th>
+                                <th className="numeric">Mkt Value</th>
+                                <th className="numeric">Weight</th>
+                                <th className="numeric">P/L</th>
+                                <th style={{ textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {enrichedHoldingsWithWeight.length === 0 && !loading && (
                                 <tr>
                                     <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                        No holdings in your paper portfolio.
+                                        No holdings in your paper portfolio. Click "Add Holding" to start.
                                     </td>
                                 </tr>
                             )}
                             {enrichedHoldingsWithWeight.map(h => (
-                                <tr key={h.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                    <td style={{ padding: '1rem 1.5rem' }}>
-                                        <div style={{ color: 'var(--accent-light)', fontWeight: 500 }}>{h.ticker}</div>
+                                <tr key={h.id} className="history-row">
+                                    <td>
+                                        <div style={{ fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '0.875rem', color: 'var(--text-primary)' }}>{h.ticker}</div>
+                                        {h.company_name && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{h.company_name}</div>}
                                     </td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{h.quantity}</td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{formatCurrency(h.average_cost)}</td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{h.currentPrice ? formatCurrency(h.currentPrice) : 'Loading...'}</td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{h.currentPrice !== undefined ? formatCurrency(h.marketValue!) : '-'}</td>
-                                    <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{h.currentPrice !== undefined ? formatPct(h.weight) : '-'}</td>
-                                    <td style={{ padding: '1rem 1.5rem', color: h.unrealizedPL !== undefined && h.unrealizedPL >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                        {h.currentPrice !== undefined && h.unrealizedPL !== undefined && h.unrealizedPLPct !== undefined ? (
-                                            <>
-                                                {h.unrealizedPL > 0 ? '+' : ''}{formatCurrency(h.unrealizedPL)} <br/>
-                                                <span style={{ fontSize: '0.75rem' }}>({h.unrealizedPL > 0 ? '+' : ''}{formatPct(h.unrealizedPLPct)})</span>
-                                            </>
-                                        ) : '-'}
+                                    <td className="numeric">{h.quantity}</td>
+                                    <td className="numeric">{formatCurrency(h.average_cost)}</td>
+                                    <td className="numeric">{h.currentPrice !== undefined ? formatCurrency(h.currentPrice) : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                                    <td className="numeric">{h.marketValue !== undefined ? formatCurrency(h.marketValue) : '—'}</td>
+                                    <td className="numeric">{h.marketValue !== undefined ? formatPct(h.weight) : '—'}</td>
+                                    <td className="numeric" style={{ color: h.unrealizedPL !== undefined ? (h.unrealizedPL >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)', fontWeight: 600 }}>
+                                        {h.unrealizedPL !== undefined && h.unrealizedPLPct !== undefined ? (
+                                            <div>
+                                                <div>{h.unrealizedPL > 0 ? '+' : ''}{formatCurrency(h.unrealizedPL)}</div>
+                                                <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>({h.unrealizedPL > 0 ? '+' : ''}{formatPct(h.unrealizedPLPct)})</div>
+                                            </div>
+                                        ) : '—'}
                                     </td>
-                                    <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                            <button className="action-btn" onClick={() => openEditModal(h)} title="Edit"><Edit2 size={16} /></button>
-                                            <button className="action-btn" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(h.id)} title="Delete"><Trash2 size={16} /></button>
+                                    <td style={{ textAlign: 'right' }}>
+                                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
+                                            <button className="action-btn" onClick={() => openEditModal(h)} title="Edit holding"><Edit2 size={14} /></button>
+                                            <button className="action-btn" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(h.id)} title="Delete holding"><Trash2 size={14} /></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -304,54 +268,33 @@ export const Portfolio: React.FC = () => {
 
             {/* Modal */}
             {showModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-                    <div className="panel" style={{ width: '400px', padding: '2rem' }}>
-                        <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
-                            {modalMode === 'add' ? 'Add Holding' : 'Edit Holding'}
-                        </h2>
+                <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                    <div className="modal-panel" onClick={e => e.stopPropagation()}>
+                        <h2 className="modal-title">{modalMode === 'add' ? 'Add Holding' : 'Edit Holding'}</h2>
                         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Ticker Symbol</label>
-                                <input 
-                                    className="settings-input" 
-                                    value={formTicker} 
-                                    onChange={e => setFormTicker(e.target.value.toUpperCase())} 
-                                    placeholder="e.g. AAPL" 
-                                    required 
+                            <div className="form-group">
+                                <label className="form-label">Ticker Symbol</label>
+                                <input
+                                    className="form-input"
+                                    value={formTicker}
+                                    onChange={e => setFormTicker(e.target.value.toUpperCase())}
+                                    placeholder="e.g. AAPL"
+                                    required
                                     disabled={modalMode === 'edit'}
-                                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '0.75rem', borderRadius: '4px', width: '100%', outline: 'none' }}
+                                    style={{ fontFamily: 'var(--mono)', fontWeight: 600, letterSpacing: '0.04em' }}
                                 />
                             </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Quantity</label>
-                                <input 
-                                    type="number"
-                                    step="any"
-                                    className="settings-input" 
-                                    value={formQuantity} 
-                                    onChange={e => setFormQuantity(e.target.value)} 
-                                    placeholder="0" 
-                                    required 
-                                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '0.75rem', borderRadius: '4px', width: '100%', outline: 'none' }}
-                                />
+                            <div className="form-group">
+                                <label className="form-label">Quantity</label>
+                                <input type="number" step="any" className="form-input" value={formQuantity} onChange={e => setFormQuantity(e.target.value)} placeholder="0" required />
                             </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Average Cost ($)</label>
-                                <input 
-                                    type="number"
-                                    step="any"
-                                    className="settings-input" 
-                                    value={formAvgCost} 
-                                    onChange={e => setFormAvgCost(e.target.value)} 
-                                    placeholder="0.00" 
-                                    required 
-                                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '0.75rem', borderRadius: '4px', width: '100%', outline: 'none' }}
-                                />
+                            <div className="form-group">
+                                <label className="form-label">Average Cost ($)</label>
+                                <input type="number" step="any" className="form-input" value={formAvgCost} onChange={e => setFormAvgCost(e.target.value)} placeholder="0.00" required />
                             </div>
-                            
-                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                                <button type="button" className="action-btn" style={{ flex: 1, padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '4px' }} onClick={() => setShowModal(false)}>Cancel</button>
-                                <button type="submit" className="trade-btn" style={{ flex: 1 }}>Save</button>
+                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                                <button type="button" className="btn btn-outline btn-full" onClick={() => setShowModal(false)}>Cancel</button>
+                                <button type="submit" className="btn btn-primary btn-full">Save Holding</button>
                             </div>
                         </form>
                     </div>

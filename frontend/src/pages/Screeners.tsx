@@ -4,30 +4,63 @@ import { ApiClient } from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import type { ScreenerItem } from '../types/api';
 
+interface FilterRowProps {
+    label: string;
+    minKey: string;
+    maxKey: string;
+    step?: string;
+    filters: Record<string, string>;
+    onFilterChange: (key: string, value: string) => void;
+}
+
+function FilterRow({ label, minKey, maxKey, step, filters, onFilterChange }: FilterRowProps) {
+    return (
+        <div className="form-group">
+            <label className="form-label">{label}</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters[minKey]}
+                    onChange={e => onFilterChange(minKey, e.target.value)}
+                    className="form-input"
+                    step={step}
+                    style={{ width: '50%', minWidth: 0 }}
+                />
+                <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters[maxKey]}
+                    onChange={e => onFilterChange(maxKey, e.target.value)}
+                    className="form-input"
+                    step={step}
+                    style={{ width: '50%', minWidth: 0 }}
+                />
+            </div>
+        </div>
+    );
+}
+
 export const Screeners: React.FC = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [results, setResults] = useState<ScreenerItem[]>([]);
-    
-    // Filter state
+
     const [filters, setFilters] = useState<Record<string, string>>({
         min_price: '', max_price: '',
         min_pe: '', max_pe: '',
         min_market_cap: '', max_market_cap: '',
-        min_yield: '', max_yield: ''
+        min_yield: '', max_yield: '',
     });
 
     const fetchScreeners = async () => {
         setLoading(true);
         setError(null);
         try {
-            // Convert to numbers or undefined
             const parsedFilters: Record<string, number | undefined> = {};
             for (const [key, val] of Object.entries(filters)) {
-                if (val.trim() !== '') {
-                    parsedFilters[key] = Number(val);
-                }
+                if (val.trim() !== '') parsedFilters[key] = Number(val);
             }
             const data = await ApiClient.getScreenerResults(parsedFilters);
             setResults(data);
@@ -38,7 +71,6 @@ export const Screeners: React.FC = () => {
         }
     };
 
-    // Fetch on initial mount
     useEffect(() => {
         fetchScreeners();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -53,123 +85,104 @@ export const Screeners: React.FC = () => {
     };
 
     const handleReset = () => {
-        setFilters({
-            min_price: '', max_price: '',
-            min_pe: '', max_pe: '',
-            min_market_cap: '', max_market_cap: '',
-            min_yield: '', max_yield: ''
-        });
+        const empty = { min_price: '', max_price: '', min_pe: '', max_pe: '', min_market_cap: '', max_market_cap: '', min_yield: '', max_yield: '' };
+        setFilters(empty);
         setTimeout(() => fetchScreeners(), 0);
     };
 
-    const formatCurrency = (val: any) => val ? `$${val.toFixed(2)}` : '-';
-    const formatPct = (val: any) => val ? `${val.toFixed(2)}%` : '-';
+    const formatCurrency = (val: any) => val ? `$${Number(val).toFixed(2)}` : '—';
+    const formatPct = (val: any) => val ? `${Number(val).toFixed(2)}%` : '—';
     const formatNumber = (val: any) => {
-        if (!val) return '-';
+        if (!val) return '—';
         if (val >= 1e12) return (val / 1e12).toFixed(2) + 'T';
-        if (val >= 1e9) return (val / 1e9).toFixed(2) + 'B';
-        if (val >= 1e6) return (val / 1e6).toFixed(2) + 'M';
+        if (val >= 1e9)  return (val / 1e9).toFixed(2)  + 'B';
+        if (val >= 1e6)  return (val / 1e6).toFixed(2)  + 'M';
         return val.toLocaleString();
     };
 
+
+
     return (
-        <div className="research-container" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div className="page-content">
+            {/* Header */}
+            <div className="page-header">
                 <div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>Stock Screener</h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Filter major US equities by fundamentals</p>
+                    <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Filter size={20} style={{ color: 'var(--accent)' }} /> Stock Screener
+                    </h1>
+                    <p className="page-subtitle">Filter major US equities by fundamentals</p>
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '250px 1fr', gap: '2rem' }}>
-                <div className="panel" style={{ alignSelf: 'start', padding: '1.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                        <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Filter size={16} /> Filters</h3>
-                        <button className="action-btn" onClick={handleReset} title="Reset Filters"><X size={16} /></button>
+            <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+                {/* Filter sidebar */}
+                <div className="panel" style={{ position: 'sticky', top: '1.5rem' }}>
+                    <div className="panel-header">
+                        <div className="panel-title"><Filter size={13} /> Filters</div>
+                        <button className="btn btn-ghost btn-sm" onClick={handleReset} title="Reset all filters" style={{ gap: '0.25rem', padding: '0.25rem 0.5rem' }}>
+                            <X size={12} /> Reset
+                        </button>
                     </div>
 
                     <form onSubmit={handleApply} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Price ($)</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <input className="settings-input" placeholder="Min" value={filters.min_price} onChange={e => handleFilterChange('min_price', e.target.value)} type="number" step="0.01" />
-                                <input className="settings-input" placeholder="Max" value={filters.max_price} onChange={e => handleFilterChange('max_price', e.target.value)} type="number" step="0.01" />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>P/E Ratio</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <input className="settings-input" placeholder="Min" value={filters.min_pe} onChange={e => handleFilterChange('min_pe', e.target.value)} type="number" step="0.1" />
-                                <input className="settings-input" placeholder="Max" value={filters.max_pe} onChange={e => handleFilterChange('max_pe', e.target.value)} type="number" step="0.1" />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Market Cap ($)</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <input className="settings-input" placeholder="Min" value={filters.min_market_cap} onChange={e => handleFilterChange('min_market_cap', e.target.value)} type="number" />
-                                <input className="settings-input" placeholder="Max" value={filters.max_market_cap} onChange={e => handleFilterChange('max_market_cap', e.target.value)} type="number" />
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Dividend Yield (%)</label>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <input className="settings-input" placeholder="Min" value={filters.min_yield} onChange={e => handleFilterChange('min_yield', e.target.value)} type="number" step="0.1" />
-                                <input className="settings-input" placeholder="Max" value={filters.max_yield} onChange={e => handleFilterChange('max_yield', e.target.value)} type="number" step="0.1" />
-                            </div>
-                        </div>
-
-                        <button type="submit" className="trade-btn" style={{ marginTop: '1rem', width: '100%' }}>Apply Filters</button>
+                        <FilterRow label="Price ($)" minKey="min_price" maxKey="max_price" step="0.01" filters={filters} onFilterChange={handleFilterChange} />
+                        <FilterRow label="P/E Ratio" minKey="min_pe" maxKey="max_pe" step="0.1" filters={filters} onFilterChange={handleFilterChange} />
+                        <FilterRow label="Market Cap ($)" minKey="min_market_cap" maxKey="max_market_cap" filters={filters} onFilterChange={handleFilterChange} />
+                        <FilterRow label="Div. Yield (%)" minKey="min_yield" maxKey="max_yield" step="0.1" filters={filters} onFilterChange={handleFilterChange} />
+                        <button type="submit" className="btn btn-primary btn-full" style={{ marginTop: '0.5rem', gap: '0.375rem' }}>
+                            {loading ? <><RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> Applying…</> : 'Apply Filters'}
+                        </button>
                     </form>
                 </div>
 
+                {/* Results */}
                 <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
-                    {error && (
-                        <div className="badge badge-danger" style={{ margin: '1rem' }}>
-                            {error}
+                    <div className="panel-header" style={{ padding: '0.875rem 1.25rem' }}>
+                        <div className="panel-title">
+                            {loading ? 'Screening…' : `${results.length} result${results.length !== 1 ? 's' : ''}`}
                         </div>
-                    )}
-                    
-                    <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{results.length} Matches Found</span>
-                        {loading && <RefreshCw className="spinner" size={16} style={{ color: 'var(--text-secondary)', animation: 'spin 1s linear infinite' }} />}
+                        {loading && <RefreshCw size={14} style={{ color: 'var(--text-muted)', animation: 'spin 1s linear infinite' }} />}
                     </div>
 
+                    {error && <div className="error-banner" style={{ margin: '1rem' }}>{error}</div>}
+
                     <div style={{ overflowX: 'auto', maxHeight: '600px', overflowY: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                        <table className="terminal-table">
                             <thead>
-                                <tr style={{ textAlign: 'left', color: 'var(--text-secondary)' }}>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Ticker</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Price</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Change</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Market Cap</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>P/E</th>
-                                    <th style={{ padding: '1rem 1.5rem', fontWeight: 500, position: 'sticky', top: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>Div Yield</th>
+                                <tr>
+                                    <th>Ticker</th>
+                                    <th className="numeric">Price</th>
+                                    <th className="numeric">Change</th>
+                                    <th className="numeric">Mkt Cap</th>
+                                    <th className="numeric">P/E</th>
+                                    <th className="numeric">Div Yield</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {results.length === 0 && !loading && (
                                     <tr>
                                         <td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                            No stocks matched your criteria.
+                                            No stocks match your criteria.
                                         </td>
                                     </tr>
                                 )}
                                 {results.map(item => (
-                                    <tr key={item.ticker} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => navigate(`/markets?ticker=${item.ticker}`)} className="table-row-hover">
-                                        <td style={{ padding: '1rem 1.5rem' }}>
-                                            <div style={{ color: 'var(--accent-light)', fontWeight: 500 }}>{item.ticker}</div>
+                                    <tr
+                                        key={item.ticker}
+                                        className="history-row"
+                                        onClick={() => navigate(`/markets?ticker=${item.ticker}`)}
+                                    >
+                                        <td>
+                                            <div style={{ fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '0.875rem', color: 'var(--text-primary)' }}>{item.ticker}</div>
                                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.company}</div>
                                         </td>
-                                        <td style={{ padding: '1rem 1.5rem', color: 'var(--text-primary)' }}>{formatCurrency(item.price)}</td>
-                                        <td style={{ padding: '1rem 1.5rem', color: (item.day_change_pct || 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                        <td className="numeric">{formatCurrency(item.price)}</td>
+                                        <td className="numeric" style={{ color: (item.day_change_pct || 0) >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
                                             {(item.day_change_pct || 0) > 0 ? '+' : ''}{formatPct(item.day_change_pct)}
                                         </td>
-                                        <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{formatNumber(item.market_cap)}</td>
-                                        <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{item.pe ? item.pe.toFixed(2) : '-'}</td>
-                                        <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>{formatPct(item.dividend_yield)}</td>
+                                        <td className="numeric">{formatNumber(item.market_cap)}</td>
+                                        <td className="numeric">{item.pe ? item.pe.toFixed(2) : '—'}</td>
+                                        <td className="numeric">{formatPct(item.dividend_yield)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -177,25 +190,6 @@ export const Screeners: React.FC = () => {
                     </div>
                 </div>
             </div>
-            
-            <style>{`
-                .settings-input {
-                    background: var(--bg-primary);
-                    border: 1px solid var(--border);
-                    color: var(--text-primary);
-                    border-radius: 4px;
-                    padding: 0.5rem;
-                    width: 100%;
-                    outline: none;
-                    font-size: 0.875rem;
-                }
-                .settings-input:focus {
-                    border-color: var(--accent);
-                }
-                .table-row-hover:hover {
-                    background-color: var(--bg-hover);
-                }
-            `}</style>
         </div>
     );
 };
