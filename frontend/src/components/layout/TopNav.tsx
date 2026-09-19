@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { Search, Sun, Moon, LogOut, User, Plus } from 'lucide-react';
+import { Search, Sun, Moon, LogOut, User, Plus, Menu } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-export function TopNav() {
+interface TopNavProps {
+    onToggleMobileSidebar?: () => void;
+}
+
+export function TopNav({ onToggleMobileSidebar }: TopNavProps) {
     const { user, signOut } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const location = useLocation();
@@ -25,19 +29,31 @@ export function TopNav() {
 
     return (
         <header className="top-bar" style={{ position: 'relative' }}>
-            {/* Search */}
-            <form onSubmit={handleSearch} role="search" className="search-container">
-                <button type="submit" aria-label="Search ticker" style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', display: 'flex', lineHeight: 0 }}>
-                    <Search size={14} />
+            <div className="top-bar-left">
+                <button
+                    type="button"
+                    className="action-btn mobile-menu-toggle"
+                    onClick={onToggleMobileSidebar}
+                    aria-label="Toggle navigation menu"
+                    title="Open menu"
+                >
+                    <Menu size={18} />
                 </button>
-                <input
-                    type="search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search ticker..."
-                    aria-label="Search tickers"
-                />
-            </form>
+
+                {/* Search */}
+                <form onSubmit={handleSearch} role="search" className="search-container">
+                    <button type="submit" aria-label="Search ticker" style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', display: 'flex', lineHeight: 0 }}>
+                        <Search size={14} />
+                    </button>
+                    <input
+                        type="search"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search ticker..."
+                        aria-label="Search tickers"
+                    />
+                </form>
+            </div>
 
             {/* Centre nav tabs */}
             <nav className="top-nav" aria-label="Main navigation">

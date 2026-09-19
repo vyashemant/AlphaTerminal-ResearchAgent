@@ -1,7 +1,7 @@
 import os
 import sys
 
-from services.research_pipeline import run_investment_research
+from services.research_pipeline import run_investment_research, print_pipeline_timing
 
 if __name__ == "__main__":
 
@@ -13,7 +13,7 @@ if __name__ == "__main__":
     print("AI INVESTMENT RESEARCH TEAM")
     print("=" * 80)
 
-    final_report, strategy_result, timings = run_investment_research(company, ticker)
+    final_report, strategy_result, canonical_evidence, consistency_report, timings = run_investment_research(company, ticker)
     
     if final_report is not None:
         strategy = final_report.investment_strategy

@@ -91,7 +91,7 @@ export function Dashboard() {
             ) : (
                 <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     {/* Main: Recent Research */}
-                    <div className="panel" style={{ flex: '1 1 580px', padding: 0 }}>
+                    <div className="panel" style={{ flex: '1 1 580px', padding: 0, minWidth: 0, width: '100%', overflow: 'hidden' }}>
                         <div className="panel-header" style={{ padding: '1rem 1.25rem' }}>
                             <div className="panel-title"><Clock size={14} /> Recent Research</div>
                             {history.length > 5 && (
@@ -100,46 +100,48 @@ export function Dashboard() {
                                 </button>
                             )}
                         </div>
-                        <table className="terminal-table">
-                            <thead>
-                                <tr>
-                                    <th>Company</th>
-                                    <th>Ticker</th>
-                                    <th>Date</th>
-                                    <th style={{ textAlign: 'center' }}>Status</th>
-                                    <th style={{ textAlign: 'right' }}>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentJobs.map((item) => (
-                                    <tr key={item.job_id} className="history-row" onClick={() => navigate(`/research/${item.job_id}`)}>
-                                        <td style={{ fontWeight: 600 }}>{item.company}</td>
-                                        <td><span className="badge badge-neutral">{item.ticker}</span></td>
-                                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{formatDate(item.created_at)}</td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <span className={`badge ${
-                                                item.status === 'completed' ? 'badge-success' :
-                                                item.status === 'failed'    ? 'badge-danger'  : 'badge-warning'
-                                            }`}>
-                                                {item.status.toUpperCase()}
-                                            </span>
-                                        </td>
-                                        <td style={{ textAlign: 'right' }}>
-                                            <button
-                                                className="btn btn-outline btn-sm"
-                                                onClick={(e) => { e.stopPropagation(); navigate(`/research/${item.job_id}`); }}
-                                            >
-                                                View
-                                            </button>
-                                        </td>
+                        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+                            <table className="terminal-table" style={{ width: '100%', minWidth: '460px' }}>
+                                <thead>
+                                    <tr>
+                                        <th>Company</th>
+                                        <th>Ticker</th>
+                                        <th>Date</th>
+                                        <th style={{ textAlign: 'center' }}>Status</th>
+                                        <th style={{ textAlign: 'right' }}>Action</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {recentJobs.map((item) => (
+                                        <tr key={item.job_id} className="history-row" onClick={() => navigate(`/research/${item.job_id}`)}>
+                                            <td style={{ fontWeight: 600 }}>{item.company}</td>
+                                            <td><span className="badge badge-neutral">{item.ticker}</span></td>
+                                            <td style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>{formatDate(item.created_at)}</td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <span className={`badge ${
+                                                    item.status === 'completed' ? 'badge-success' :
+                                                    item.status === 'failed'    ? 'badge-danger'  : 'badge-warning'
+                                                }`}>
+                                                    {item.status.toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <button
+                                                    className="btn btn-outline btn-sm"
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/research/${item.job_id}`); }}
+                                                >
+                                                    View
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     {/* Sidebar: Stats + Watchlist */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: '1 1 260px', minWidth: 220 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: '1 1 260px', minWidth: 0, width: '100%' }}>
                         {/* Stats */}
                         <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                             <div className="stat-card">

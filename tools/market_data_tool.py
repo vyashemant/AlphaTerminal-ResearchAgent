@@ -67,40 +67,76 @@ class MarketDataTool(BaseTool):
 
         try:
             stock = yf.Ticker(ticker)
-            info = stock.info
-            fast_info = stock.fast_info
+            fast_info = getattr(stock, "fast_info", None)
 
-            if not info:
-                return {"error": f"No market information found for ticker {ticker}."}
+            current_price = None
+            previous_close = None
+            market_cap = None
+            day_high = None
+            day_low = None
+            week_52_high = None
+            week_52_low = None
+            volume = None
 
-            current_price = safe_value(fast_info.get("lastPrice"))
-            previous_close = safe_value(info.get("previousClose"))
-            day_high = safe_value(info.get("dayHigh"))
-            day_low = safe_value(info.get("dayLow"))
-            week_52_high = safe_value(info.get("fiftyTwoWeekHigh"))
-            week_52_low = safe_value(info.get("fiftyTwoWeekLow"))
-            volume = safe_value(info.get("volume"))
+            if fast_info is not None:
+                current_price = safe_value(getattr(fast_info, "last_price", None) or fast_info.get("lastPrice"))
+                previous_close = safe_value(getattr(fast_info, "previous_close", None) or fast_info.get("previousClose"))
+                market_cap = safe_value(getattr(fast_info, "market_cap", None) or fast_info.get("marketCap"))
+                day_high = safe_value(getattr(fast_info, "day_high", None) or fast_info.get("dayHigh"))
+                day_low = safe_value(getattr(fast_info, "day_low", None) or fast_info.get("dayLow"))
+                week_52_high = safe_value(getattr(fast_info, "year_high", None) or fast_info.get("yearHigh"))
+                week_52_low = safe_value(getattr(fast_info, "year_low", None) or fast_info.get("yearLow"))
+                volume = safe_value(getattr(fast_info, "last_volume", None) or fast_info.get("lastVolume"))
+
+            # Extract 1-month chart history (uses unauthenticated v8 chart API)
+            historical_data = []
+            try:
+                history = stock.history(period="1mo", interval="1d")
+                if history is not None and not history.empty:
+                    for date, row in history.tail(10).iterrows():
+                        historical_data.append({
+                            "date": str(date.date()),
+                            "open": safe_value(row.get("Open")),
+                            "high": safe_value(row.get("High")),
+                            "low": safe_value(row.get("Low")),
+                            "close": safe_value(row.get("Close")),
+                            "volume": safe_value(row.get("Volume"))
+                        })
+                    if current_price is None and len(historical_data) > 0:
+                        current_price = historical_data[-1]["close"]
+                    if previous_close is None and len(historical_data) > 1:
+                        previous_close = historical_data[-2]["close"]
+            except Exception:
+                pass
+
+            # Quote summary / fundamentals (crumb-dependent endpoint, protected against 401)
+            info = {}
+            try:
+                info = stock.info or {}
+            except Exception:
+                info = {}
+
+            # Fill in any missing metrics from info if available
+            current_price = current_price or safe_value(info.get("currentPrice") or info.get("regularMarketPrice"))
+            previous_close = previous_close or safe_value(info.get("previousClose"))
+            day_high = day_high or safe_value(info.get("dayHigh"))
+            day_low = day_low or safe_value(info.get("dayLow"))
+            week_52_high = week_52_high or safe_value(info.get("fiftyTwoWeekHigh"))
+            week_52_low = week_52_low or safe_value(info.get("fiftyTwoWeekLow"))
+            volume = volume or safe_value(info.get("volume"))
             average_volume = safe_value(info.get("averageVolume"))
-            market_cap = safe_value(info.get("marketCap"))
+            market_cap = market_cap or safe_value(info.get("marketCap"))
             beta = safe_value(info.get("beta"))
             dividend_yield = safe_value(info.get("dividendYield"))
 
-            history = stock.history(period="1mo", interval="1d")
-            historical_data = []
+            if current_price is None:
+                return {"error": f"Unable to retrieve market price for ticker {ticker}. Upstream market data unavailable."}
 
-            if history is not None and not history.empty:
-                for date, row in history.tail(10).iterrows():
-                    historical_data.append({
-                        "date": str(date.date()),
-                        "open": safe_value(row.get("Open")),
-                        "high": safe_value(row.get("High")),
-                        "low": safe_value(row.get("Low")),
-                        "close": safe_value(row.get("Close")),
-                        "volume": safe_value(row.get("Volume"))
-                    })
+            from services.market_service import MAJOR_TICKER_NAMES
+            company_name = info.get("longName") or info.get("shortName") or MAJOR_TICKER_NAMES.get(ticker, ticker)
 
             valuation_metrics = {
-                "Market Cap": safe_value(info.get("marketCap")),
+                "Market Cap": market_cap,
                 "Trailing P/E": safe_value(info.get("trailingPE")),
                 "Forward P/E": safe_value(info.get("forwardPE")),
                 "Price To Sales": safe_value(info.get("priceToSalesTrailing12Months")),
@@ -112,7 +148,7 @@ class MarketDataTool(BaseTool):
             return {
                 "source": "Yahoo Finance via yfinance",
                 "ticker": ticker,
-                "company": info.get("longName") or info.get("shortName"),
+                "company": company_name,
                 "market_data": {
                     "current_price": current_price,
                     "previous_close": previous_close,

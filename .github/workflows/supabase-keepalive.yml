@@ -1,0 +1,19 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Run once daily at 17:17 UTC (non-round minute) to wake Render service and execute a lightweight DB check
+    - cron: '17 17 * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    name: Ping Readiness Probe
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send GET request to /ready
+        run: |
+          echo "Sending readiness keep-alive request to Render backend..."
+          RESPONSE=$(curl --fail --show-error --silent --max-time 60 "https://alphaterminal-researchagent.onrender.com/ready")
+          echo "Response from /ready: ${RESPONSE}"
+          echo "Supabase keep-alive check completed successfully."

@@ -28,8 +28,12 @@ if not GEMINI_API_KEY:
 # LLM
 # ============================================================
 
+gemini_model = settings.GEMINI_SPECIALIST_MODEL or "gemini-3.5-flash-lite"
+if not gemini_model.startswith("gemini/"):
+    gemini_model = f"gemini/{gemini_model}"
+
 llm = LLM(
-    model="gemini/gemini-3.5-flash",
+    model=gemini_model,
     api_key=GEMINI_API_KEY,
     temperature=0.3
 )

@@ -90,22 +90,32 @@ export const Screeners: React.FC = () => {
         setTimeout(() => fetchScreeners(), 0);
     };
 
-    const formatCurrency = (val: any) => val ? `$${Number(val).toFixed(2)}` : '—';
-    const formatPct = (val: any) => val ? `${Number(val).toFixed(2)}%` : '—';
+    const formatCurrency = (val: any) => {
+        if (val === null || val === undefined) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+        return `$${Number(val).toFixed(2)}`;
+    };
+    const formatPct = (val: any) => {
+        if (val === null || val === undefined) return <span style={{ color: 'var(--text-muted)' }}>N/A</span>;
+        return `${Number(val).toFixed(2)}%`;
+    };
+    const formatPe = (val: any) => {
+        if (val === null || val === undefined) return <span style={{ color: 'var(--text-muted)' }}>N/A</span>;
+        return Number(val).toFixed(2);
+    };
     const formatNumber = (val: any) => {
-        if (!val) return '—';
+        if (val === null || val === undefined) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
         if (val >= 1e12) return (val / 1e12).toFixed(2) + 'T';
         if (val >= 1e9)  return (val / 1e9).toFixed(2)  + 'B';
         if (val >= 1e6)  return (val / 1e6).toFixed(2)  + 'M';
-        return val.toLocaleString();
+        return Number(val).toLocaleString();
     };
 
-
+    const hasUnavailableFundamentals = results.length > 0 && results.some(r => r.pe === null || r.pe === undefined);
 
     return (
         <div className="page-content">
             {/* Header */}
-            <div className="page-header">
+            <div className="page-header" style={{ marginBottom: '1.5rem' }}>
                 <div>
                     <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Filter size={20} style={{ color: 'var(--accent)' }} /> Stock Screener
@@ -114,10 +124,18 @@ export const Screeners: React.FC = () => {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+            {hasUnavailableFundamentals && (
+                <div className="panel" style={{ padding: '0.75rem 1.25rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'var(--accent-bg)', border: '1px solid var(--accent-border)' }}>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                        <strong style={{ color: 'var(--text-primary)' }}>Upstream Status:</strong> Quote fundamentals (P/E and Dividend Yield) marked <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>N/A</span> are temporarily restricted by upstream provider crumb authentication. Price, Change %, and Market Cap remain live.
+                    </div>
+                </div>
+            )}
+
+            <div className="screeners-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
                 {/* Filter sidebar */}
-                <div className="panel" style={{ position: 'sticky', top: '1.5rem' }}>
-                    <div className="panel-header">
+                <div className="panel screeners-filter-panel" style={{ width: '100%', boxSizing: 'border-box' }}>
+                    <div className="panel-header" style={{ paddingBottom: '0.75rem' }}>
                         <div className="panel-title"><Filter size={13} /> Filters</div>
                         <button className="btn btn-ghost btn-sm" onClick={handleReset} title="Reset all filters" style={{ gap: '0.25rem', padding: '0.25rem 0.5rem' }}>
                             <X size={12} /> Reset
@@ -136,7 +154,7 @@ export const Screeners: React.FC = () => {
                 </div>
 
                 {/* Results */}
-                <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="panel" style={{ padding: 0, overflow: 'hidden', minWidth: 0, width: '100%' }}>
                     <div className="panel-header" style={{ padding: '0.875rem 1.25rem' }}>
                         <div className="panel-title">
                             {loading ? 'Screening…' : `${results.length} result${results.length !== 1 ? 's' : ''}`}
@@ -146,16 +164,16 @@ export const Screeners: React.FC = () => {
 
                     {error && <div className="error-banner" style={{ margin: '1rem' }}>{error}</div>}
 
-                    <div style={{ overflowX: 'auto', maxHeight: '600px', overflowY: 'auto' }}>
-                        <table className="terminal-table">
+                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxHeight: '600px', overflowY: 'auto', width: '100%' }}>
+                        <table className="terminal-table" style={{ width: '100%', minWidth: '600px', tableLayout: 'fixed' }}>
                             <thead>
                                 <tr>
-                                    <th>Ticker</th>
-                                    <th className="numeric">Price</th>
-                                    <th className="numeric">Change</th>
-                                    <th className="numeric">Mkt Cap</th>
-                                    <th className="numeric">P/E</th>
-                                    <th className="numeric">Div Yield</th>
+                                    <th style={{ width: '26%' }}>Ticker</th>
+                                    <th className="numeric" style={{ width: '15%' }}>Price</th>
+                                    <th className="numeric" style={{ width: '14%' }}>Change</th>
+                                    <th className="numeric" style={{ width: '17%' }}>Mkt Cap</th>
+                                    <th className="numeric" style={{ width: '14%' }}>P/E</th>
+                                    <th className="numeric" style={{ width: '14%' }}>Div Yield</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -174,14 +192,14 @@ export const Screeners: React.FC = () => {
                                     >
                                         <td>
                                             <div style={{ fontWeight: 700, fontFamily: 'var(--mono)', fontSize: '0.875rem', color: 'var(--text-primary)' }}>{item.ticker}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.company}</div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.company}</div>
                                         </td>
                                         <td className="numeric">{formatCurrency(item.price)}</td>
                                         <td className="numeric" style={{ color: (item.day_change_pct || 0) >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
                                             {(item.day_change_pct || 0) > 0 ? '+' : ''}{formatPct(item.day_change_pct)}
                                         </td>
                                         <td className="numeric">{formatNumber(item.market_cap)}</td>
-                                        <td className="numeric">{item.pe ? item.pe.toFixed(2) : '—'}</td>
+                                        <td className="numeric">{formatPe(item.pe)}</td>
                                         <td className="numeric">{formatPct(item.dividend_yield)}</td>
                                     </tr>
                                 ))}

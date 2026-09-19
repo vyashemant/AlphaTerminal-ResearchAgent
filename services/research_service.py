@@ -97,11 +97,40 @@ def background_research_task(job_id: str, company: str, ticker: str, user_id: st
         
     except Exception as e:
         logger.error(f"Research failure for Job ID {job_id}: {str(e)}", exc_info=True)
+        
+        err_str = str(e).lower()
+        if (
+            "geminiquotaexceedederror" in type(e).__name__.lower()
+            or "resource_exhausted" in err_str
+            or "429" in err_str
+            or "quota exceeded" in err_str
+            or "rate limit" in err_str
+        ):
+            user_error = (
+                "Research is temporarily unavailable because the AI provider has reached its request limit. "
+                "Please try again shortly."
+            )
+        elif (
+            "404" in err_str
+            or "not_found" in err_str
+            or "not found" in err_str
+            or "model unavailable" in err_str
+            or "unavailable to new users" in err_str
+        ):
+            user_error = (
+                "The configured AI model is unavailable or not found. "
+                "Please verify the Gemini model configuration."
+            )
+        elif "timed out" in err_str or "timeout" in err_str:
+            user_error = "Research job timed out while communicating with external data providers. Please try again."
+        else:
+            user_error = "Research pipeline encountered an unexpected issue while analyzing company data. Diagnostics logged."
+
         try:
             db.update_job(
                 job_id=job_id,
                 status="failed",
-                error=f"Research job failed due to internal error. Diagnostics available in logs.",
+                error=user_error,
                 completed_at=datetime.now(timezone.utc).isoformat()
             )
         except Exception as db_e:

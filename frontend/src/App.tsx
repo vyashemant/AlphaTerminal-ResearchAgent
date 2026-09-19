@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Routes, Route, useLocation, Outlet } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { Research } from './pages/Research';
@@ -16,6 +17,14 @@ import './index.css';
 function DashboardLayout() {
     const location = useLocation();
     const path = location.pathname;
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+    // Auto-close mobile drawer upon route change
+    const [prevPath, setPrevPath] = useState(location.pathname);
+    if (prevPath !== location.pathname) {
+        setPrevPath(location.pathname);
+        setMobileSidebarOpen(false);
+    }
 
     let currentTab = '';
     if (path === '/dashboard')           currentTab = 'dashboard';
@@ -28,9 +37,13 @@ function DashboardLayout() {
 
     return (
         <div className="app-shell">
-            <Sidebar currentTab={currentTab} />
+            <Sidebar
+                currentTab={currentTab}
+                mobileOpen={mobileSidebarOpen}
+                onClose={() => setMobileSidebarOpen(false)}
+            />
             <main className="main-content-wrapper">
-                <TopNav />
+                <TopNav onToggleMobileSidebar={() => setMobileSidebarOpen(prev => !prev)} />
                 <div className="main-scroll-area">
                     <Outlet />
                 </div>

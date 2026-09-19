@@ -125,6 +125,31 @@
 
 @media (max-width: 1024px) {
     .grid-3 { grid-template-columns: 1fr; }
+    .grid-3 > div { grid-column: auto !important; }
+}
+
+@media (max-width: 768px) {
+    .terminal-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+    .header-meta {
+        align-items: flex-start !important;
+        text-align: left !important;
+    }
+    .company-title-row {
+        flex-wrap: wrap;
+    }
+    .price-row {
+        flex-wrap: wrap;
+    }
+    .company-name {
+        font-size: 1.5rem;
+    }
+    .current-price {
+        font-size: 1.75rem;
+    }
 }
 
 /* KPI Cells */
@@ -257,6 +282,8 @@
 .evidence-table-container {
     max-height: 400px;
     overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .evidence-table th {

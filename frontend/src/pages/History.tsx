@@ -70,7 +70,7 @@ export function History() {
                 {history.length > 0 && (
                     <div className="page-header-actions" style={{ flexWrap: 'wrap' }}>
                         {/* Search */}
-                        <div style={{ position: 'relative' }}>
+                        <div style={{ position: 'relative', flex: '1 1 180px', minWidth: '140px' }}>
                             <Search size={13} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
                             <input
                                 type="text"
@@ -78,7 +78,7 @@ export function History() {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="form-input"
-                                style={{ paddingLeft: '2.25rem', paddingRight: searchQuery ? '2.25rem' : '0.875rem', width: '220px' }}
+                                style={{ paddingLeft: '2.25rem', paddingRight: searchQuery ? '2.25rem' : '0.875rem', width: '100%', boxSizing: 'border-box' }}
                             />
                             {searchQuery && (
                                 <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, display: 'flex', lineHeight: 0 }}>
@@ -140,19 +140,20 @@ export function History() {
                     </div>
                 </div>
             ) : (
-                <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
-                    <table className="terminal-table">
-                        <thead>
-                            <tr>
-                                <th>Company</th>
-                                <th>Ticker</th>
-                                <th>Created</th>
-                                <th>Completed</th>
-                                <th style={{ textAlign: 'center' }}>Status</th>
-                                <th style={{ fontFamily: 'var(--mono)' }}>Job ID</th>
-                                <th style={{ textAlign: 'right' }}>Action</th>
-                            </tr>
-                        </thead>
+                <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+                        <table className="terminal-table" style={{ width: '100%', minWidth: '600px' }}>
+                            <thead>
+                                <tr>
+                                    <th>Company</th>
+                                    <th>Ticker</th>
+                                    <th>Created</th>
+                                    <th>Completed</th>
+                                    <th style={{ textAlign: 'center' }}>Status</th>
+                                    <th style={{ fontFamily: 'var(--mono)' }}>Job ID</th>
+                                    <th style={{ textAlign: 'right' }}>Action</th>
+                                </tr>
+                            </thead>
                         <tbody>
                             {filteredHistory.map((item) => (
                                 <tr key={item.job_id} className="history-row" onClick={() => navigate(`/research/${item.job_id}`)}>
@@ -187,6 +188,7 @@ export function History() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             )}
 

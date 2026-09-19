@@ -16,38 +16,38 @@ export const Markets: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [moversError, setMoversError] = useState<string | null>(null);
 
+    const fetchMovers = async () => {
+        if (tickerQuery) return;
+        try {
+            setLoading(true);
+            setMoversError(null);
+            const data = await ApiClient.getMarketMovers();
+            setMovers(data);
+        } catch (err: any) {
+            setMoversError(err.message || 'Failed to load market movers');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchQuote = async () => {
+        if (!tickerQuery) { setQuote(null); return; }
+        try {
+            setLoading(true);
+            setError(null);
+            const data = await ApiClient.getMarketQuote(tickerQuery);
+            setQuote(data);
+        } catch (err: any) {
+            setError(err.message || 'Failed to fetch quote');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchMovers = async () => {
-            if (tickerQuery) return;
-            try {
-                setLoading(true);
-                setMoversError(null);
-                const data = await ApiClient.getMarketMovers();
-                setMovers(data);
-            } catch (err: any) {
-                setMoversError(err.message || 'Failed to load market movers');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        const fetchQuote = async () => {
-            if (!tickerQuery) { setQuote(null); return; }
-            try {
-                setLoading(true);
-                setError(null);
-                const data = await ApiClient.getMarketQuote(tickerQuery);
-                setQuote(data);
-            } catch (err: any) {
-                setError(err.message || 'Failed to fetch quote');
-            } finally {
-                setLoading(false);
-            }
-        };
-
         if (tickerQuery) fetchQuote();
         else fetchMovers();
-    }, [tickerQuery]);
+    }, [tickerQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -81,8 +81,8 @@ export const Markets: React.FC = () => {
                     <p className="page-subtitle">{tickerQuery ? 'Real-time quote data' : 'Market movers overview'}</p>
                 </div>
 
-                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                    <div style={{ position: 'relative' }}>
+                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', flex: '1 1 180px', minWidth: '140px' }}>
                         <Search size={13} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
                         <input
                             type="text"
@@ -90,7 +90,7 @@ export const Markets: React.FC = () => {
                             defaultValue={tickerQuery || ''}
                             placeholder="Enter ticker (e.g. AAPL)"
                             className="form-input"
-                            style={{ paddingLeft: '2.25rem', width: '220px', fontFamily: 'var(--mono)', fontWeight: 500, letterSpacing: '0.02em' }}
+                            style={{ paddingLeft: '2.25rem', width: '100%', boxSizing: 'border-box', fontFamily: 'var(--mono)', fontWeight: 500, letterSpacing: '0.02em' }}
                         />
                     </div>
                     <button type="submit" className="btn btn-primary btn-sm">Get Quote</button>
@@ -187,72 +187,119 @@ export const Markets: React.FC = () => {
                 </div>
             )}
 
-            {/* Movers error */}
+            {/* Movers error banner */}
             {!loading && !tickerQuery && moversError && (
-                <div className="error-banner">{moversError}</div>
+                <div className="error-banner" style={{ marginBottom: '1.5rem' }}>
+                    <div>{moversError}</div>
+                    <button className="btn btn-outline btn-sm" onClick={fetchMovers} style={{ marginTop: '0.5rem', gap: '0.375rem' }}>
+                        <RefreshCw size={13} /> Retry Market Data
+                    </button>
+                </div>
+            )}
+
+            {/* Degraded upstream state */}
+            {!loading && !tickerQuery && !moversError && movers && (movers.status === 'degraded' || (movers.gainers.length === 0 && movers.losers.length === 0)) && (
+                <div className="panel" style={{ padding: '2.5rem 1.5rem', textAlign: 'center', marginBottom: '1.5rem' }}>
+                    <div style={{
+                        width: 44, height: 44, margin: '0 auto 1rem', borderRadius: '50%',
+                        background: 'var(--warning-bg)', border: '1px solid var(--warning)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--warning)'
+                    }}>
+                        <Activity size={22} />
+                    </div>
+                    <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                        Market Movers Temporarily Degraded
+                    </h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', maxWidth: '480px', margin: '0 auto 1.25rem' }}>
+                        {movers.message || 'Upstream provider data is currently limited. Individual quote lookups, chart history, and SEC fundamentals remain available.'}
+                    </p>
+                    <button className="btn btn-primary btn-sm" onClick={fetchMovers} style={{ gap: '0.375rem' }}>
+                        <RefreshCw size={13} /> Retry Overview
+                    </button>
+                </div>
             )}
 
             {/* Market movers */}
-            {!loading && !tickerQuery && movers && !moversError && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+            {!loading && !tickerQuery && movers && !moversError && (movers.gainers.length > 0 || movers.losers.length > 0) && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
                     {/* Gainers */}
-                    <div className="panel" style={{ padding: 0 }}>
+                    <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
                         <div className="panel-header" style={{ padding: '1rem 1.25rem' }}>
                             <div className="panel-title" style={{ color: 'var(--success)' }}>
                                 <TrendingUp size={14} /> Top Gainers
                             </div>
                         </div>
-                        <table className="terminal-table">
-                            <thead>
-                                <tr>
-                                    <th>Ticker</th>
-                                    <th className="numeric">Price</th>
-                                    <th className="numeric">Change</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {movers.gainers.map((m) => (
-                                    <tr key={m.ticker} className="history-row" onClick={() => navigate(`/markets?ticker=${m.ticker}`)}>
-                                        <td>
-                                            <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>{m.ticker}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.company}</div>
-                                        </td>
-                                        <td className="numeric">${m.price?.toFixed(2)}</td>
-                                        <td className="numeric" style={{ color: 'var(--success)', fontWeight: 600 }}>+{m.day_change_pct?.toFixed(2)}%</td>
+                        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+                            <table className="terminal-table" style={{ width: '100%', minWidth: '280px' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '45%' }}>Ticker</th>
+                                        <th className="numeric" style={{ width: '25%' }}>Price</th>
+                                        <th className="numeric" style={{ width: '30%' }}>Change</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {movers.gainers.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={3} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                                                No gainers recorded in this session.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        movers.gainers.map((m) => (
+                                            <tr key={m.ticker} className="history-row" onClick={() => navigate(`/markets?ticker=${m.ticker}`)}>
+                                                <td>
+                                                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>{m.ticker}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.company}</div>
+                                                </td>
+                                                <td className="numeric">${m.price?.toFixed(2)}</td>
+                                                <td className="numeric" style={{ color: 'var(--success)', fontWeight: 600 }}>+{m.day_change_pct?.toFixed(2)}%</td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     {/* Losers */}
-                    <div className="panel" style={{ padding: 0 }}>
+                    <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
                         <div className="panel-header" style={{ padding: '1rem 1.25rem' }}>
                             <div className="panel-title" style={{ color: 'var(--danger)' }}>
                                 <TrendingDown size={14} /> Top Losers
                             </div>
                         </div>
-                        <table className="terminal-table">
-                            <thead>
-                                <tr>
-                                    <th>Ticker</th>
-                                    <th className="numeric">Price</th>
-                                    <th className="numeric">Change</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {movers.losers.map((m) => (
-                                    <tr key={m.ticker} className="history-row" onClick={() => navigate(`/markets?ticker=${m.ticker}`)}>
-                                        <td>
-                                            <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>{m.ticker}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.company}</div>
-                                        </td>
-                                        <td className="numeric">${m.price?.toFixed(2)}</td>
-                                        <td className="numeric" style={{ color: 'var(--danger)', fontWeight: 600 }}>{m.day_change_pct?.toFixed(2)}%</td>
+                        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+                            <table className="terminal-table" style={{ width: '100%', minWidth: '280px' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '45%' }}>Ticker</th>
+                                        <th className="numeric" style={{ width: '25%' }}>Price</th>
+                                        <th className="numeric" style={{ width: '30%' }}>Change</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {movers.losers.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={3} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                                                No losers recorded in this session.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        movers.losers.map((m) => (
+                                            <tr key={m.ticker} className="history-row" onClick={() => navigate(`/markets?ticker=${m.ticker}`)}>
+                                                <td>
+                                                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--mono)', fontSize: '0.875rem' }}>{m.ticker}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.company}</div>
+                                                </td>
+                                                <td className="numeric">${m.price?.toFixed(2)}</td>
+                                                <td className="numeric" style={{ color: 'var(--danger)', fontWeight: 600 }}>{m.day_change_pct?.toFixed(2)}%</td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}

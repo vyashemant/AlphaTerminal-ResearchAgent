@@ -206,6 +206,8 @@ export interface MarketMoverItem {
 export interface MarketMoversResponse {
     gainers: MarketMoverItem[];
     losers: MarketMoverItem[];
+    status?: 'ok' | 'degraded';
+    message?: string;
 }
 
 export interface ScreenerItem {
