@@ -61,8 +61,9 @@ if hasattr(sys.stderr, "reconfigure"):
 
 from api.config import settings
 
-def get_llm():
+def get_llm(model=None):
     from api.config import settings
+    from services.gemini_limiter import ThrottledLLM
     GEMINI_API_KEY = settings.GEMINI_API_KEY
     
     if not GEMINI_API_KEY:
@@ -71,8 +72,18 @@ def get_llm():
             "Please add GEMINI_API_KEY to your .env file."
         )
     
-    return LLM(
-        model="gemini/gemini-3.5-flash",
+    target_model = model or settings.GEMINI_MODEL or "gemini-3.5-flash"
+    
+    # Strip 'gemini/' if it was passed by mistake or legacy config, 
+    # to ensure the raw model name is used with the explicit provider.
+    if target_model.startswith("gemini/"):
+        model_name = target_model.replace("gemini/", "", 1)
+    else:
+        model_name = target_model
+    
+    return ThrottledLLM(
+        model=model_name,
+        provider="gemini",
         api_key=GEMINI_API_KEY,
         temperature=0.3
     )
@@ -811,7 +822,7 @@ def run_specialists_in_parallel(base_inputs, research_contexts):
     Run independent specialist agents concurrently after data retrieval.
     The Investment Strategist still runs only after all reports complete.
     """
-    llm = get_llm()
+    llm = get_llm(settings.GEMINI_SPECIALIST_MODEL)
     
     financial_analyst = create_financial_analyst(llm)
     financial_analysis_task = create_financial_analysis_task(financial_analyst)
@@ -973,7 +984,7 @@ def run_investment_research(company: str, ticker: str):
     print("STEP 5 - RUNNING INVESTMENT STRATEGIST")
     print("=" * 80)
 
-    llm = get_llm()
+    llm = get_llm(settings.GEMINI_MODEL)
     investment_strategist = create_investment_strategist(llm)
     investment_strategy_task = create_investment_strategy_task(investment_strategist)
     

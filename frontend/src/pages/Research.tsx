@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Terminal, Database, BrainCircuit, Activity, Star, StarOff, Plus } from 'lucide-react';
+import { Terminal, Database, BrainCircuit, Activity, Star, StarOff, Plus, AlertTriangle, RefreshCw, Download } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { useResearchPolling } from '../hooks/useResearchPolling';
 import { ResearchDashboard } from '../components/dashboard/ResearchDashboard';
@@ -18,6 +18,8 @@ export function Research() {
     const [watchlistItemId, setWatchlistItemId] = useState<string | null>(null);
     const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
     const [watchlistActionError, setWatchlistActionError] = useState<string | null>(null);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadError, setDownloadError] = useState<string | null>(null);
 
     const { jobId, setJobId, status, result, error, setError } = useResearchPolling(urlJobId || null);
 
@@ -44,8 +46,8 @@ export function Research() {
                         setIsInWatchlist(false);
                         setWatchlistItemId(null);
                     }
-                } catch (_e) {
-                    console.error('Failed to check watchlist status');
+                } catch (err) {
+                    console.error('Failed to check watchlist status', err);
                 } finally {
                     setIsWatchlistLoading(false);
                 }
@@ -82,7 +84,8 @@ export function Research() {
                     const existing = response.watchlist.find(item => item.ticker.toUpperCase() === t.toUpperCase());
                     if (existing) { setIsInWatchlist(true); setWatchlistItemId(existing.id); }
                     else { setIsInWatchlist(true); }
-                } catch (_fetchErr) {
+                } catch (fetchErr) {
+                    console.warn('Could not refresh watchlist after conflict', fetchErr);
                     setIsInWatchlist(true);
                 }
             } else {
@@ -104,6 +107,36 @@ export function Research() {
             setError(err.message || 'Failed to submit research request.');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleDownload = async () => {
+        if (!jobId || status !== 'completed') return;
+        setDownloadError(null);
+        setIsDownloading(true);
+        try {
+            const { blob, filename } = await ApiClient.downloadResearchReport(jobId);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (err: any) {
+            if (err.status === 401) {
+                setDownloadError("Please sign in again.");
+            } else if (err.status === 404) {
+                setDownloadError("Research report not found.");
+            } else if (err.status === 409) {
+                setDownloadError("Research report is not ready yet.");
+            } else {
+                setDownloadError("Unable to generate the research report. Please try again.");
+            }
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -148,6 +181,16 @@ export function Research() {
                                     }
                                 </button>
                             )}
+                            {status === 'completed' && (
+                                <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={handleDownload}
+                                    disabled={isDownloading}
+                                    style={{ gap: '0.375rem' }}
+                                >
+                                    {isDownloading ? 'Generating PDF...' : <><Download size={13} /> Download Research</>}
+                                </button>
+                            )}
                             <button className="btn btn-outline btn-sm" onClick={() => navigate('/research')} style={{ gap: '0.375rem' }}>
                                 <Plus size={13} /> New Research
                             </button>
@@ -158,14 +201,60 @@ export function Research() {
                 {watchlistActionError && (
                     <div className="error-banner" style={{ marginBottom: '1.5rem' }}>{watchlistActionError}</div>
                 )}
+                {downloadError && (
+                    <div className="error-banner" style={{ marginBottom: '1.5rem' }}>{downloadError}</div>
+                )}
                 {error && (
                     <div className="error-banner" style={{ marginBottom: '1.5rem' }}>{error}</div>
                 )}
-                {status === 'failed' && (
-                    <div className="error-banner" style={{ marginBottom: '1.5rem' }}>
-                        Research job failed: {result?.error || 'Unknown error'}
-                    </div>
-                )}
+                {status === 'failed' && (() => {
+                    const rawError = result?.error || error || '';
+                    const isRateLimit = rawError.toLowerCase().includes('request limit')
+                        || rawError.toLowerCase().includes('quota')
+                        || rawError.toLowerCase().includes('429')
+                        || rawError.toLowerCase().includes('resource_exhausted')
+                        || rawError.toLowerCase().includes('temporarily unavailable');
+
+                    const displayMessage = isRateLimit
+                        ? "Research is temporarily unavailable because the AI provider has reached its request limit. Please try again shortly."
+                        : (rawError || "Research sequence could not complete. Please initiate a new research run.");
+
+                    return (
+                        <div className="panel" style={{
+                            padding: '1.75rem 1.5rem',
+                            marginBottom: '1.5rem',
+                            borderLeft: '4px solid var(--danger)',
+                            background: 'var(--bg-panel)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                                <div style={{
+                                    width: 36, height: 36, borderRadius: '50%',
+                                    background: 'var(--danger-bg)', border: '1px solid var(--danger)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)',
+                                    flexShrink: 0
+                                }}>
+                                    <AlertTriangle size={18} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
+                                        {isRateLimit ? 'AI Request Quota Limit Reached' : 'Research Execution Failed'}
+                                    </h3>
+                                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
+                                        {displayMessage}
+                                    </p>
+                                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                        <button className="btn btn-primary btn-sm" onClick={() => navigate('/research')} style={{ gap: '0.375rem' }}>
+                                            <RefreshCw size={13} /> Try New Research
+                                        </button>
+                                        <button className="btn btn-outline btn-sm" onClick={() => navigate('/history')}>
+                                            View Past Research
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {status === 'completed' && result?.result && (
                     <ResearchDashboard report={result.result} />

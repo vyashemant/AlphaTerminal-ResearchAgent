@@ -63,6 +63,37 @@ export class ApiClient {
         return this.fetchWithHandling(`/api/v1/research/${jobId}`);
     }
 
+    static async downloadResearchReport(jobId: string): Promise<{ blob: Blob, filename: string }> {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {};
+        if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/research/${jobId}/download`, {
+            headers,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const error = new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+            (error as any).status = response.status;
+            throw error;
+        }
+
+        const blob = await response.blob();
+        let filename = `alpha-terminal-report.pdf`;
+        const disposition = response.headers.get('content-disposition');
+        if (disposition && disposition.indexOf('attachment') !== -1) {
+            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+            const matches = filenameRegex.exec(disposition);
+            if (matches != null && matches[1]) {
+                filename = matches[1].replace(/['"]/g, '');
+            }
+        }
+        return { blob, filename };
+    }
+
     static async getResearchHistory(limit: number = 20): Promise<ResearchHistoryResponse> {
         return this.fetchWithHandling(`/api/v1/research/history?limit=${limit}`);
     }

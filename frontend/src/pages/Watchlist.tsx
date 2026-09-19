@@ -139,8 +139,9 @@ export function Watchlist() {
                     </div>
                 </div>
             ) : (
-                <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
-                    <table className="terminal-table">
+                <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+                        <table className="terminal-table" style={{ width: '100%', minWidth: '540px' }}>
                         <thead>
                             <tr>
                                 <th>Ticker</th>
@@ -187,6 +188,7 @@ export function Watchlist() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             )}
         </div>

@@ -71,6 +71,10 @@ class DatabaseBackend(ABC):
     def delete_portfolio_item(self, id: str, user_id: str, db_path=None):
         pass
 
+    @abstractmethod
+    def health_check(self) -> bool:
+        pass
+
 
 class SQLiteBackend(DatabaseBackend):
     @contextmanager
@@ -315,6 +319,17 @@ class SQLiteBackend(DatabaseBackend):
         except Exception as e:
             raise PersistenceError("SQLite delete_portfolio_item failed") from e
 
+    def health_check(self) -> bool:
+        try:
+            with self._get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+                return True
+        except Exception as e:
+            logger.error(f"SQLite health_check failed: {e}")
+            raise PersistenceError("SQLite health_check failed") from e
+
 
 class SupabaseBackend(DatabaseBackend):
     def __init__(self):
@@ -502,6 +517,15 @@ class SupabaseBackend(DatabaseBackend):
             logger.error(f"Supabase write error (delete_portfolio_item)")
             raise PersistenceError("Supabase delete_portfolio_item failed") from e
 
+    def health_check(self) -> bool:
+        try:
+            # Lightweight query against an existing table without loading user data or mutating records
+            self._client.table("research_jobs").select("job_id").limit(1).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Supabase health_check failed: {e}")
+            raise PersistenceError("Supabase health_check failed") from e
+
 
 class MockBackend(DatabaseBackend):
     """In-memory dictionary exclusively for explicit testing mode."""
@@ -509,6 +533,7 @@ class MockBackend(DatabaseBackend):
         self._mock_db: Dict[str, dict] = {}
         self._mock_watchlist: Dict[str, dict] = {}
         self._mock_portfolio: Dict[str, dict] = {}
+        self._is_healthy: bool = True
 
     def clear(self):
         self._mock_db.clear()
@@ -630,6 +655,11 @@ class MockBackend(DatabaseBackend):
         if id in self._mock_portfolio and self._mock_portfolio[id].get("user_id") == user_id:
             del self._mock_portfolio[id]
 
+    def health_check(self) -> bool:
+        if not self._is_healthy:
+            raise PersistenceError("Mock database health check failed")
+        return True
+
 
 # Singleton setup logic
 _db_instance: Optional[DatabaseBackend] = None
@@ -705,6 +735,9 @@ def list_portfolio(user_id: str, db_path=None) -> list:
 
 def delete_portfolio_item(id: str, user_id: str, db_path=None):
     get_db().delete_portfolio_item(id, user_id, db_path)
+
+def health_check() -> bool:
+    return get_db().health_check()
 
 def set_testing_mode(enabled: bool):
     """

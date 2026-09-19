@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     SUPABASE_URL: Optional[str] = None
     SUPABASE_SECRET_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = Field(default="gemini-3.5-flash")
+    GEMINI_SPECIALIST_MODEL: str = Field(default="gemini-3.5-flash-lite")
+    GEMINI_MAX_CONCURRENT_CALLS: int = Field(default=1)
+    GEMINI_REQUESTS_PER_MINUTE: int = Field(default=4)
     SEC_USER_AGENT: Optional[str] = None
     MARKETAUX_API_KEY: Optional[str] = None
     RESEARCH_JOB_TIMEOUT_SECONDS: int = Field(default=3600)

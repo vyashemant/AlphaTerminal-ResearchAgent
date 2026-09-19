@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, status, Query, Depends, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, status, Query, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
@@ -179,12 +179,14 @@ def health():
 def ready():
     try:
         import db.database as db
-        # A simple connectivity check that doesn't block heavily
-        db.list_watchlist(user_id="00000000-0000-0000-0000-000000000000")
-        return {"status": "ok"}
+        db.health_check()
+        return {"status": "ready"}
     except Exception as e:
         logger.error(f"Readiness check failed: {e}")
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Service unavailable")
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "unavailable", "detail": "Database unavailable"}
+        )
 
 @app.post("/api/v1/research", status_code=status.HTTP_202_ACCEPTED, response_model=ResearchJobResponse)
 def research(request: ResearchRequest, background_tasks: BackgroundTasks, user: Dict[str, str] = Depends(get_current_user)):
@@ -235,6 +237,49 @@ def get_research_status_route(job_id: str, user: Dict[str, str] = Depends(get_cu
         created_at=job_data["created_at"],
         started_at=job_data.get("started_at"),
         completed_at=job_data.get("completed_at")
+    )
+
+@app.get("/api/v1/research/{job_id}/download")
+def download_research_report_route(job_id: str, user: Dict[str, str] = Depends(get_current_user)):
+    job_data = get_research_job(job_id, user_id=user["id"])
+    if not job_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Research job not found."
+        )
+    
+    if job_data["status"] in ["queued", "running"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Research report is not ready yet."
+        )
+        
+    if job_data["status"] == "failed" or not job_data.get("result"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Research failed, no report is available."
+        )
+        
+    try:
+        from services.research_pdf import generate_research_pdf
+        pdf_bytes = generate_research_pdf(job_data["result"])
+    except Exception as e:
+        logger.error(f"Failed to generate PDF for job {job_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to generate the research report. Please try again."
+        )
+        
+    ticker = job_data.get("ticker", "UNKNOWN")
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    filename = f"alpha-terminal-{ticker}-{date_str}.pdf"
+    
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
     )
 
 @app.get("/api/v1/watchlist", response_model=WatchlistResponse)

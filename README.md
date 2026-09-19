@@ -8,12 +8,12 @@
 Alpha Terminal — AI Investment Research Platform
 
 ## 2. Short Project Description
-Alpha Terminal provides sophisticated market intelligence by executing deep fundamental analysis. It retrieves real-time financial data, validates metrics deterministically, and synthesizes reports using a multi-agent AI system. It features a modern, dual-themed (Light/Dark), fintech-inspired React dashboard backed by a high-performance FastAPI server and Supabase for authentication and persistence.
+Alpha Terminal provides sophisticated market intelligence by executing deep fundamental analysis. It retrieves market data (Yahoo Finance via yfinance, subject to upstream availability and rate limits), validates metrics deterministically, and synthesizes reports using a multi-agent AI system. It features a modern, dual-themed (Light/Dark), fintech-inspired React dashboard backed by a high-performance FastAPI server and Supabase for authentication and persistence.
 
 ## 3. Key Features
 - **AI-Powered Research**: Multi-agent system that analyzes SEC filings, earnings transcripts, and news to generate comprehensive investment strategies.
 - **Deterministic Metrics**: Accurate financial math (P/E, yield, margins) calculated purely in Python, ensuring the AI relies on factual data.
-- **Paper Portfolio**: Track holdings, view allocation visualizations (PieCharts), calculate weights, and monitor unrealized P/L based on real-time prices.
+- **Paper Portfolio**: Track holdings, view allocation visualizations (PieCharts), calculate weights, and monitor unrealized P/L based on market prices.
 - **Screener & Markets**: Filter bounded asset universes by market cap, P/E, dividend yield, and price. View daily market movers (gainers/losers).
 - **Watchlist Integration**: Seamlessly save researched tickers to a persistent watchlist.
 - **Robust Job Lifecycle**: Asynchronous research execution with stale-job recovery and background task processing.
@@ -35,8 +35,8 @@ The platform operates a clear separation of concerns between raw data processing
 ## 5. Tech Stack
 - **Frontend**: React 19, Vite, TypeScript, React Router, Recharts, Lucide Icons, vanilla CSS (Light/Dark theme).
 - **Backend**: FastAPI, Python 3.10+, Pydantic, yfinance, TTLCache (cachetools).
-- **AI / Agents**: CrewAI, Google Gemini (`gemini-3.5-flash`).
-- **Database / Auth**: Supabase (PostgreSQL), SQLite (fallback/mock).
+- **AI / Agents**: CrewAI, Google Gemini (`gemini-3.5-flash` strategist, `gemini-3.5-flash-lite` specialist subagents).
+- **Database / Auth**: Supabase (PostgreSQL production backend; SQLite and Mock are explicitly selectable local/test backends with no silent production fallback).
 
 ## 6. Application Structure
 ```
@@ -58,7 +58,7 @@ Alpha Terminal uses a multi-agent system built on CrewAI:
 - **Strategist**: Synthesizes the findings into actionable investment strategies.
 
 ## 8. Data Sources
-- **Yahoo Finance (`yfinance`)**: Real-time quotes, market caps, P/E, historical prices.
+- **Yahoo Finance (`yfinance`)**: Quotes, market caps, P/E, and historical prices (Yahoo Finance via yfinance, subject to upstream availability and rate limits).
 - **SEC EDGAR**: Filings and institutional holdings.
 - **Marketaux / News API**: Market sentiment and news events.
 
@@ -82,7 +82,7 @@ The platform records the source of major claims. The output includes a provenanc
 5. All database operations strictly use this derived `user_id`. The frontend NEVER submits `user_id` as a payload parameter, and the frontend NEVER possesses the Supabase `service-role` key.
 
 ## 13. Supabase Database Architecture
-The backend uses a scalable PostgreSQL abstraction supporting Supabase.
+Supabase (PostgreSQL) is the production database backend. SQLite and Mock backends are explicitly selectable local/test backends via `DATABASE_BACKEND`; there is no silent production fallback.
 **Migrations**:
 - `20260908_create_research_jobs.sql`: Stores asynchronous reports.
 - `20260911_add_started_at.sql`: Lifecycle tracking.
@@ -94,7 +94,7 @@ The backend uses a scalable PostgreSQL abstraction supporting Supabase.
 Persistent, user-scoped storage for tracked tickers. Seamlessly integrates with the Research UI, allowing users to toggle tickers into their watchlist immediately after analyzing them.
 
 ## 15. Markets
-Dedicated dashboard to view market health. Features real-time quotes, dynamic search, and a "Market Movers" section detailing daily top gainers and losers. Includes graceful degradation and retry handling for external API rate limits.
+Dedicated dashboard to view market health. Features market quotes (Yahoo Finance via yfinance, subject to upstream availability and rate limits), dynamic search, and a "Market Movers" section detailing daily top gainers and losers. Includes graceful degradation and retry handling for external API rate limits.
 
 ## 16. Screeners
 Advanced filtering across a bounded ticker universe. Supports numeric bounding (min/max) for Price, Market Cap, P/E Ratio, and Dividend Yield. Features server-side validation against `NaN` and `Infinity` payloads.
@@ -102,7 +102,7 @@ Advanced filtering across a bounded ticker universe. Supports numeric bounding (
 ## 17. Paper Portfolio
 Users can construct a paper portfolio (simulated trades). Features include:
 - Adding/Editing/Deleting holdings.
-- Real-time market value and unrealized P/L calculation.
+- Market value and unrealized P/L calculation based on latest prices.
 - Portfolio weight % per holding.
 - Recharts-powered allocation donut chart.
 
@@ -156,6 +156,10 @@ DATABASE_BACKEND=supabase  # or sqlite/mock
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SECRET_KEY=your-server-only-secret
 GEMINI_API_KEY=your-gemini-key
+GEMINI_MODEL=gemini-3.5-flash
+GEMINI_SPECIALIST_MODEL=gemini-3.5-flash-lite
+GEMINI_MAX_CONCURRENT_CALLS=1
+GEMINI_REQUESTS_PER_MINUTE=4
 SEC_USER_AGENT=YourAppName your-email@example.com
 MARKETAUX_API_KEY=your-marketaux-key
 RESEARCH_JOB_TIMEOUT_SECONDS=3600
@@ -261,7 +265,7 @@ Authorization: Bearer <SUPABASE_ACCESS_TOKEN>
 | `POST` | `/api/v1/portfolio` | **Yes** | Adds an equity position to the user's portfolio |
 | `PATCH` | `/api/v1/portfolio/{item_id}` | **Yes** | Updates quantity and average cost basis of an existing holding |
 | `DELETE` | `/api/v1/portfolio/{item_id}` | **Yes** | Deletes a holding from the user's portfolio |
-| `GET` | `/api/v1/markets/quote` | No | Fetches real-time price, metrics, and valuation multiples for a ticker |
+| `GET` | `/api/v1/markets/quote` | No | Fetches market price, metrics, and valuation multiples for a ticker (Yahoo Finance via yfinance, subject to upstream availability and rate limits) |
 | `GET` | `/api/v1/markets/movers` | No | Fetches top daily market gainers and losers from major equities |
 | `GET` | `/api/v1/markets/screener` | No | Filters equities by price, market cap, P/E ratio, and dividend yield |
 | `GET` | `/docs` | No | Interactive Swagger UI API documentation |
@@ -288,16 +292,19 @@ Liveness probe to verify the application process is running.
   ```
 
 ##### `GET /ready`
-Readiness probe verifying that backend persistence (database) is initialized and responding.
+Readiness probe verifying that backend persistence (database) is initialized and responding via a lightweight connectivity query.
 - **Authentication**: None
 - **Status**: `200 OK` when ready; `503 Service Unavailable` if database connectivity fails.
 - **Response (`200 OK`)**:
   ```json
-  { "status": "ok" }
+  { "status": "ready" }
   ```
 - **Response (`503 Service Unavailable`)**:
   ```json
-  { "detail": "Service unavailable" }
+  {
+    "status": "unavailable",
+    "detail": "Database unavailable"
+  }
   ```
 - **Example**:
   ```bash
@@ -634,10 +641,13 @@ Alpha Terminal is architected for decoupled cloud deployment:
 #### Backend (Render / Hosting Dashboard)
 | Variable | Description | Example / Recommended Value |
 |---|---|---|
-| `DATABASE_BACKEND` | Persistence provider (must be `supabase` in production) | `supabase` |
+| `DATABASE_BACKEND` | Persistence provider (must be `supabase` in production; `sqlite` or `mock` for local/testing) | `supabase` |
 | `SUPABASE_URL` | Supabase project REST URL | `https://your-project-id.supabase.co` |
 | `SUPABASE_SECRET_KEY` | Server-side service role key (never expose to client) | `your-supabase-service-role-secret` |
 | `GEMINI_API_KEY` | Google Gemini API key for CrewAI agents | `your-gemini-api-key` |
+| `GEMINI_MODEL` | Gemini LLM model identifier (default: `gemini-2.5-flash`) | `gemini-2.5-flash` |
+| `GEMINI_MAX_CONCURRENT_CALLS` | Centralized max concurrent Gemini LLM requests (default: `1`) | `1` |
+| `GEMINI_REQUESTS_PER_MINUTE` | Centralized Gemini request rate limit per minute (default: `4`) | `4` |
 | `SEC_USER_AGENT` | SEC EDGAR compliant user agent header | `AlphaTerminal AdminContact@your-domain.example` |
 | `MARKETAUX_API_KEY` | Marketaux API key for financial news (optional) | `your-marketaux-key` |
 | `RESEARCH_JOB_TIMEOUT_SECONDS` | Inactivity threshold before a running job is marked stale | `3600` |
@@ -665,6 +675,30 @@ Alpha Terminal is architected for decoupled cloud deployment:
      - **Redirect URLs**:
        - `https://your-frontend-domain.example/**`
        - `http://localhost:5173/**` (for local development)
+
+### Supabase Free Plan Keep-Alive
+
+Supabase Free Plan projects may automatically pause following a period of low activity over 7 days. To prevent unintended project pauses during low-traffic periods, Alpha Terminal implements a lightweight daily readiness path:
+
+```
+External Scheduler (GitHub Actions)
+    ->
+Render Web Service (`GET /ready`)
+    ->
+Lightweight Database Health Query (`health_check()`)
+    ->
+Supabase Activity
+```
+
+- **Daily Schedule**: A GitHub Actions workflow (`.github/workflows/supabase-keepalive.yml`) runs daily at `17:17 UTC` (a non-round minute) and can also be triggered manually via `workflow_dispatch`.
+- **Render Wake-Up**: The scheduled curl request reaches the Render backend, waking the free container if dormant.
+- **Lightweight DB Check**: The backend `/ready` endpoint performs a lightweight query (`self._client.table("research_jobs").select("job_id").limit(1).execute()`) using the internal database service abstraction.
+- **Zero Business Mutation**: No user data, watchlist items, research jobs, or portfolio holdings are created or altered.
+- **Zero External API Pressure**: No Gemini LLM tokens, Yahoo Finance queries, SEC EDGAR requests, or Marketaux news API calls are consumed.
+- **Zero Secret Exposure**: The GitHub Actions workflow requires no credentials (no `SUPABASE_SECRET_KEY`, no `GEMINI_API_KEY`). The Render backend already holds necessary environment secrets securely.
+
+> [!NOTE]
+> This provides regular database activity intended to prevent inactivity-based pausing. Note that GitHub Actions may pause scheduled cron workflows on repositories that experience no Git activity for 60 days, so occasional repository activity or manual `workflow_dispatch` executions are recommended for long-term standby deployments.
 
 ## 28. Security Notes
 - The `SUPABASE_SECRET_KEY` resides strictly on the backend.
