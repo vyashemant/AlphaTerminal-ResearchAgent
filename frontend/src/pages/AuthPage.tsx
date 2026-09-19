@@ -55,13 +55,10 @@ export const AuthPage: React.FC = () => {
         }}>
             {/* Left panel — branding */}
             <div style={{
-                flex: '1',
                 background: 'var(--bg-secondary)',
                 borderRight: '1px solid var(--border)',
-                display: 'flex',
                 flexDirection: 'column',
                 padding: '3rem',
-                minWidth: 0,
             }} className="auth-brand-panel">
                 <Link to="/" style={{ display: 'inline-flex' }}>
                     <Logo variant="full" size={32} />
@@ -97,15 +94,17 @@ export const AuthPage: React.FC = () => {
 
             {/* Right panel — form */}
             <div style={{
-                width: '480px',
-                flexShrink: 0,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '3rem 2.5rem',
                 position: 'relative',
-            }}>
+            }} className="auth-form-panel">
+                {/* Mobile Logo top-left */}
+                <Link to="/" className="auth-mobile-logo">
+                    <Logo variant="full" size={32} />
+                </Link>
+
                 {/* Theme toggle top-right */}
                 <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem' }}>
                     <button

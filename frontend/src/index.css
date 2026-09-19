@@ -1886,9 +1886,51 @@ button { font-family: var(--sans); }
 }
 
 /* ============================================================
-   AUTH PANEL — RESPONSIVE
+   AUTH PAGE RESPONSIVENESS
    ============================================================ */
-@media (max-width: 768px) {
-    .auth-brand-panel { display: none; }
+
+/* Desktop (Default) */
+.auth-brand-panel {
+    display: flex;
+    flex: 1;
+    min-width: 0;
 }
 
+.auth-form-panel {
+    width: 480px;
+    flex-shrink: 0;
+    padding: 3rem 2.5rem;
+}
+
+.auth-mobile-logo {
+    display: none;
+}
+
+/* Mobile <= 768px */
+@media (max-width: 768px) {
+    .auth-brand-panel {
+        display: none !important;
+    }
+    
+    .auth-form-panel {
+        width: 100%;
+        max-width: 100%;
+        flex: 1;
+        min-width: 0;
+        padding: 5rem 1rem 1.5rem 1rem;
+    }
+    
+    .auth-mobile-logo {
+        display: inline-flex;
+        position: absolute;
+        top: 1.5rem;
+        left: 1rem;
+    }
+}
+
+/* Small mobile <= 480px */
+@media (max-width: 480px) {
+    .auth-form-panel {
+        padding: 5rem 1rem 1rem 1rem;
+    }
+}
